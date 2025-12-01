@@ -2,6 +2,7 @@
 
 import { useOrders } from '@/domain/operations/orders/hooks/useOrders'
 import OrderList from '@/domain/operations/orders/components/OrderList'
+import { CreateOrderModal } from '@/domain/operations/orders/components/CreateOrderModal'
 import { Button } from '@/components/ui/button'
 import { Plus, Filter } from 'lucide-react'
 import { useState } from 'react'
@@ -9,6 +10,7 @@ import { useState } from 'react'
 export default function OrdersPage() {
   const { data: orders, isLoading, error } = useOrders()
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [createModalOpen, setCreateModalOpen] = useState(false)
 
   const filteredOrders = orders?.filter(order => 
     filterStatus === 'all' || order.status === filterStatus
@@ -45,7 +47,7 @@ export default function OrdersPage() {
             {orders?.length || 0} total orders
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setCreateModalOpen(true)}>
           <Plus className="h-4 w-4" />
           New Order
         </Button>
@@ -100,6 +102,12 @@ export default function OrdersPage() {
           console.log('Selected order:', order)
           // TODO: Open order detail modal/page
         }}
+      />
+
+      {/* Create Order Modal */}
+      <CreateOrderModal 
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
       />
     </div>
   )

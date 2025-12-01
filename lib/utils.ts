@@ -1,7 +1,6 @@
-// ============================================
-// Utility Functions
-// Helper functions for common operations
-// ============================================
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
 
-export { cn } from './utils/cn'
-export { formatDate, formatCurrency } from './utils/formatters'
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
