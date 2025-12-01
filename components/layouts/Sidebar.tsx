@@ -2,14 +2,54 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Users, Briefcase } from 'lucide-react'
+import { 
+  Home, 
+  Users, 
+  ClipboardList, 
+  Calendar,
+  KanbanSquare,
+  UserCog,
+  Clock,
+  TrendingUp,
+  GraduationCap,
+  Megaphone,
+  Settings
+} from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
-const navigation = [
-  { name: 'Dashboard', href: '/owner', icon: Home },
-  { name: 'Clients', href: '/shared/clients', icon: Users },
-  { name: 'Orders', href: '/shared/orders', icon: Briefcase },
+// Owner/Admin Navigation
+const ownerNavigation = [
+  { name: 'Beranda', href: '/owner', icon: Home },
+  { name: 'Clients', href: '/owner/clients', icon: Users },
+  { name: 'Orders', href: '/owner/orders', icon: ClipboardList },
+  { name: 'Schedule', href: '/owner/schedule', icon: Calendar },
+  { name: 'Kanban', href: '/owner/kanban', icon: KanbanSquare },
+  { name: 'Team', href: '/owner/team', icon: UserCog },
+  { name: 'Timecard', href: '/owner/timecard', icon: Clock },
+  { name: 'Performance', href: '/owner/performance', icon: TrendingUp },
+  { name: 'Upskill', href: '/owner/upskill', icon: GraduationCap },
+  { name: 'Announcements', href: '/owner/announcements', icon: Megaphone },
+  { name: 'Settings', href: '/owner/settings', icon: Settings },
 ]
+
+// Teknisi/Helper Navigation
+const technicianNavigation = [
+  { name: 'Beranda', href: '/technician', icon: Home },
+  { name: 'My Jobs', href: '/technician/jobs', icon: ClipboardList },
+  { name: 'Timecard', href: '/technician/timecard', icon: Clock },
+  { name: 'Performance', href: '/technician/performance', icon: TrendingUp },
+  { name: 'Upskill', href: '/technician/upskill', icon: GraduationCap },
+  { name: 'Announcements', href: '/technician/announcements', icon: Megaphone },
+]
+
+// Client/Sales Navigation  
+const salesNavigation = [
+  { name: 'Beranda', href: '/sales', icon: Home },
+  { name: 'My Clients', href: '/sales/clients', icon: Users },
+  { name: 'Orders', href: '/sales/orders', icon: ClipboardList },
+]
+
+const navigation = ownerNavigation // Default to owner for now
 
 export default function Sidebar({ isOpen }: { isOpen: boolean }) {
   const pathname = usePathname()
