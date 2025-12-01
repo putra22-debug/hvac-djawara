@@ -321,10 +321,6 @@ CREATE POLICY "system_insert_initial_owner"
 ON public.user_tenant_roles FOR INSERT
 WITH CHECK (
   role = 'owner'
-  AND NOT EXISTS (
-    SELECT 1 FROM public.user_tenant_roles
-    WHERE tenant_id = NEW.tenant_id AND role = 'owner'
-  )
 );
 
 -- Clients policies
