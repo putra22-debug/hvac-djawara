@@ -28,6 +28,7 @@
     "react-big-calendar": "^1.19.4",
     "react-dom": "^18.3.0",
     "react-hook-form": "^7.67.0",
+    "react-signature-canvas": "^1.1.0-alpha.2",
     "recharts": "^2.10.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
