@@ -64,4 +64,12 @@ const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
 )
 Alert.displayName = 'Alert'
 
-export { Alert, alertVariants }
+const AlertDescription = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn('text-sm [&_p]:leading-relaxed', className)} {...props} />
+))
+AlertDescription.displayName = 'AlertDescription'
+
+export { Alert, AlertDescription, alertVariants }

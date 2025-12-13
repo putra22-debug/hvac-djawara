@@ -1,5 +1,22 @@
-import DashboardLayout from '@/components/layouts/DashboardLayout'
+import type { Metadata } from 'next'
+import { Providers } from './providers'
+import './globals.css'
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return <DashboardLayout>{children}</DashboardLayout>
+export const metadata: Metadata = {
+  title: 'Djawara HVAC - Professional Service Management',
+  description: 'Service management platform for HVAC professionals',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  )
 }
