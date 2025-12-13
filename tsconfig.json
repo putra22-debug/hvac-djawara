@@ -25,13 +25,10 @@
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": [
     "node_modules",
-    "domain/operations/bast",
-    "domain/operations/kanban",
-    "domain/operations/orders",
-    "domain/operations/schedule",
-    "domain/operations/spk",
-    "domain/operations/attendance",
+    "domain/**",
     "hooks/use-clients.ts",
-    "app/(dashboard)"
+    "hooks/use-tenants.ts",
+    "app/(dashboard)",
+    "app/api/attendance"
   ]
 }
