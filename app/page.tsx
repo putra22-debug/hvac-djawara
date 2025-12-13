@@ -24,7 +24,7 @@ export default function HomePage() {
           <div className="flex items-center gap-4">
             <RequestServiceModal />
             <Link href="/login">
-              <Button variant="ghost" size="sm">Login</Button>
+              <Button variant="default" size="sm">Login</Button>
             </Link>
           </div>
         </div>

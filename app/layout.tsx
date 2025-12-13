@@ -1,18 +1,10 @@
-// ============================================
-// Root Layout
-// Global providers and structure
-// ============================================
-
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
 import { Providers } from './providers'
-
-const inter = Inter({ subsets: ['latin'] })
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Djawara HVAC - Service Management Platform',
-  description: 'Multi-tenant HVAC/AC service management platform for Indonesian service companies',
+  title: 'Djawara HVAC - Professional Service Management',
+  description: 'Service management platform for HVAC professionals',
 }
 
 export default function RootLayout({
@@ -21,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="id" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en">
+      <body>
         <Providers>{children}</Providers>
       </body>
     </html>
