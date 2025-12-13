@@ -29,6 +29,7 @@
     "hooks/use-clients.ts",
     "hooks/use-tenants.ts",
     "app/(dashboard)",
+    "app/(auth)",
     "app/api/attendance"
   ]
 }
