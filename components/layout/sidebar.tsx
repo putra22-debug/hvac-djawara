@@ -10,7 +10,8 @@ import { usePathname } from 'next/navigation'
 import { 
   LayoutDashboard, 
   Users, 
-  ClipboardList, 
+  ClipboardList,
+  Calendar,
   Package, 
   DollarSign,
   Settings,
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Clients', href: '/dashboard/clients', icon: Users },
   { name: 'Service Orders', href: '/dashboard/orders', icon: ClipboardList },
+  { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar },
   { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
   { name: 'Finance', href: '/dashboard/finance', icon: DollarSign },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
