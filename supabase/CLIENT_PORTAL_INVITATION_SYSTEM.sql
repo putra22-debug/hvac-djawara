@@ -66,7 +66,7 @@ BEGIN
   RETURN QUERY
   SELECT 
     v_token,
-    v_base_url || '/client/invite/' || v_token,
+    v_base_url || '/invite/' || v_token,
     v_expires;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
