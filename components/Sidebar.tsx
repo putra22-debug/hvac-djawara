@@ -13,7 +13,8 @@ import {
   TrendingUp,
   GraduationCap,
   Megaphone,
-  Settings
+  Settings,
+  FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
@@ -24,6 +25,7 @@ const ownerNavigation = [
   { name: 'Orders', href: '/owner/orders', icon: ClipboardList },
   { name: 'Schedule', href: '/owner/schedule', icon: Calendar },
   { name: 'Kanban', href: '/owner/kanban', icon: KanbanSquare },
+  { name: 'Kontrak Maintenance', href: '/dashboard/contracts', icon: FileText },
   { name: 'Team', href: '/owner/team', icon: UserCog },
   { name: 'Timecard', href: '/owner/timecard', icon: Clock },
   { name: 'Performance', href: '/owner/performance', icon: TrendingUp },
