@@ -122,8 +122,14 @@ export function EditClientForm({ client, onSave, onCancel }: EditClientFormProps
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   required
                 >
-                  <option value="residential">Residential</option>
-                  <option value="commercial">Commercial</option>
+                  <option value="rumah_tangga">Rumah Tangga</option>
+                  <option value="perkantoran">Perkantoran</option>
+                  <option value="komersial">Komersial</option>
+                  <option value="perhotelan">Perhotelan</option>
+                  <option value="sekolah_universitas">Sekolah/Universitas</option>
+                  <option value="gedung_pertemuan">Gedung Pertemuan/Aula</option>
+                  <option value="kantor_pemerintah">Kantor Pemerintah</option>
+                  <option value="pabrik_industri">Pabrik/Industri</option>
                 </select>
               </div>
 
@@ -164,8 +170,8 @@ export function EditClientForm({ client, onSave, onCancel }: EditClientFormProps
             </div>
           </div>
 
-          {/* Commercial Details */}
-          {formData.client_type === 'commercial' && (
+          {/* Business Details (if not residential) */}
+          {formData.client_type !== 'rumah_tangga' && (
             <div className="space-y-4 pt-4 border-t">
               <h3 className="font-semibold text-gray-900">Business Details</h3>
               

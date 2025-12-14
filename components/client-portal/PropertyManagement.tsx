@@ -26,7 +26,8 @@ import { createClient } from '@/lib/supabase/client'
 interface Property {
   id: string
   property_name: string
-  property_type: 'residential' | 'commercial'
+  property_type: string
+  property_category: string
   address: string
   city: string
   postal_code: string
@@ -47,9 +48,24 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
+  function getPropertyTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      rumah_tangga: 'Rumah Tangga',
+      perkantoran: 'Perkantoran',
+      komersial: 'Komersial',
+      perhotelan: 'Perhotelan',
+      sekolah_universitas: 'Sekolah/Universitas',
+      gedung_pertemuan: 'Gedung Pertemuan/Aula',
+      kantor_pemerintah: 'Kantor Pemerintah',
+      pabrik_industri: 'Pabrik/Industri'
+    }
+    return labels[type] || type
+  }
+
   const [formData, setFormData] = useState({
     property_name: '',
-    property_type: 'residential' as 'residential' | 'commercial',
+    property_type: 'rumah_tangga',
+    property_category: 'rumah_tangga',
     address: '',
     city: '',
     postal_code: '',
@@ -104,11 +120,18 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
 
         if (updateError) throw updateError
       } else {
-        // Add new property
+        // Add new property - get tenant_id from current user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('active_tenant_id')
+          .eq('id', (await supabase.auth.getUser()).data.user?.id)
+          .single()
+
         const { error: insertError } = await supabase
           .from('client_properties')
           .insert({
             client_id: clientId,
+            tenant_id: profile?.active_tenant_id,
             ...formData
           })
 
@@ -166,6 +189,7 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
     setFormData({
       property_name: property.property_name,
       property_type: property.property_type,
+      property_category: property.property_category || 'rumah_tangga',
       address: property.address,
       city: property.city,
       postal_code: property.postal_code,
@@ -179,7 +203,8 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
   function resetForm() {
     setFormData({
       property_name: '',
-      property_type: 'residential',
+      property_type: 'rumah_tangga',
+      property_category: 'rumah_tangga',
       address: '',
       city: '',
       postal_code: '',
@@ -247,16 +272,55 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Property Category *
+                    </label>
+                    <select
+                      value={formData.property_category}
+                      onChange={(e) => {
+                        const category = e.target.value
+                        setFormData({ 
+                          ...formData, 
+                          property_category: category,
+                          // Auto-set first property type based on category
+                          property_type: category === 'rumah_tangga' ? 'rumah_tangga' : 
+                                       category === 'layanan_publik' ? 'perkantoran' : 'pabrik_industri'
+                        })
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      required
+                    >
+                      <option value="rumah_tangga">Rumah Tangga (Residential)</option>
+                      <option value="layanan_publik">Layanan Publik (Public Services)</option>
+                      <option value="industri">Industri (Industrial)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Property Type *
                     </label>
                     <select
                       value={formData.property_type}
-                      onChange={(e) => setFormData({ ...formData, property_type: e.target.value as 'residential' | 'commercial' })}
+                      onChange={(e) => setFormData({ ...formData, property_type: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       required
                     >
-                      <option value="residential">Residential</option>
-                      <option value="commercial">Commercial</option>
+                      {formData.property_category === 'rumah_tangga' && (
+                        <option value="rumah_tangga">Rumah Tangga</option>
+                      )}
+                      {formData.property_category === 'layanan_publik' && (
+                        <>
+                          <option value="perkantoran">Perkantoran</option>
+                          <option value="komersial">Komersial</option>
+                          <option value="perhotelan">Perhotelan</option>
+                          <option value="sekolah_universitas">Sekolah/Universitas</option>
+                          <option value="gedung_pertemuan">Gedung Pertemuan/Aula</option>
+                          <option value="kantor_pemerintah">Kantor Pemerintah</option>
+                        </>
+                      )}
+                      {formData.property_category === 'industri' && (
+                        <option value="pabrik_industri">Pabrik/Industri</option>
+                      )}
                     </select>
                   </div>
                 </div>
@@ -348,7 +412,7 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        {property.property_type === 'residential' ? (
+                        {property.property_type === 'rumah_tangga' ? (
                           <Home className="w-4 h-4 text-gray-400" />
                         ) : (
                           <Building className="w-4 h-4 text-gray-400" />
@@ -356,6 +420,9 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
                         <h4 className="font-semibold text-gray-900">
                           {property.property_name}
                         </h4>
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
+                          {getPropertyTypeLabel(property.property_type)}
+                        </span>
                         {property.is_primary && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
                             <Star className="w-3 h-3" />

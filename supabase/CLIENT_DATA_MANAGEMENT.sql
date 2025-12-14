@@ -44,7 +44,11 @@ CREATE TABLE IF NOT EXISTS public.client_properties (
   
   -- Property Details
   property_name TEXT NOT NULL,
-  property_type TEXT NOT NULL, -- 'residential', 'office', 'warehouse', 'factory', 'mall'
+  property_type TEXT NOT NULL CHECK (property_type IN (
+    'rumah_tangga', 'perkantoran', 'komersial', 'perhotelan', 
+    'sekolah_universitas', 'gedung_pertemuan', 'kantor_pemerintah', 'pabrik_industri'
+  )),
+  property_category TEXT NOT NULL CHECK (property_category IN ('rumah_tangga', 'layanan_publik', 'industri')),
   address TEXT NOT NULL,
   city TEXT,
   province TEXT,
@@ -80,7 +84,9 @@ ALTER TABLE public.client_properties ENABLE ROW LEVEL SECURITY;
 COMMENT ON TABLE public.client_properties IS 
 'Multi-location properties untuk client.
 1 client bisa punya banyak properti (rumah, kantor, pabrik, dll).
-Tiap properti tracked dengan detail lengkap.';
+Property Types: rumah_tangga, perkantoran, komersial, perhotelan, sekolah_universitas, gedung_pertemuan, kantor_pemerintah, pabrik_industri.
+Property Categories: rumah_tangga (residential), layanan_publik (public services), industri (industrial).
+Memudahkan klasifikasi AC berdasar peruntukan ruang/tempat penggunaannya.';
 
 -- ================================================
 -- TABLE: AC Units Inventory
@@ -221,6 +227,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger for clients table
+DROP TRIGGER IF EXISTS trigger_track_client_changes ON public.clients;
 CREATE TRIGGER trigger_track_client_changes
   AFTER INSERT OR UPDATE ON public.clients
   FOR EACH ROW
@@ -260,6 +267,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_generate_ac_unit_code ON public.ac_units;
 CREATE TRIGGER trigger_generate_ac_unit_code
   BEFORE INSERT ON public.ac_units
   FOR EACH ROW
@@ -279,6 +287,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_calculate_btu ON public.ac_units;
 CREATE TRIGGER trigger_calculate_btu
   BEFORE INSERT OR UPDATE OF capacity_pk ON public.ac_units
   FOR EACH ROW
@@ -296,11 +305,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_properties_updated_at ON public.client_properties;
 CREATE TRIGGER trigger_properties_updated_at
   BEFORE UPDATE ON public.client_properties
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_ac_units_updated_at ON public.ac_units;
 CREATE TRIGGER trigger_ac_units_updated_at
   BEFORE UPDATE ON public.ac_units
   FOR EACH ROW

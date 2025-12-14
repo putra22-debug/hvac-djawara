@@ -138,9 +138,19 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
 
         if (updateError) throw updateError
       } else {
+        // Get tenant_id from current user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('active_tenant_id')
+          .eq('id', (await supabase.auth.getUser()).data.user?.id)
+          .single()
+
         const { error: insertError } = await supabase
           .from('ac_units')
-          .insert(dataToSave)
+          .insert({
+            ...dataToSave,
+            tenant_id: profile?.active_tenant_id
+          })
 
         if (insertError) throw insertError
       }
