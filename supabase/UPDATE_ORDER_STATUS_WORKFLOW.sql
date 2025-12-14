@@ -4,7 +4,12 @@
 -- Run this in Supabase SQL Editor
 -- ============================================
 
--- Step 1: Add new enum values to order_status
+-- IMPORTANT: Run each step separately (one at a time)
+-- After running Step 1, wait 2 seconds, then run Step 2
+
+-- ============================================
+-- STEP 1: Add new enum values
+-- ============================================
 DO $$
 BEGIN
   -- Add 'listing' status (for all new requests/proposals)
@@ -22,22 +27,26 @@ BEGIN
   ELSE
     RAISE NOTICE '  pending status already exists';
   END IF;
+  
+  RAISE NOTICE '';
+  RAISE NOTICE '✓ STEP 1 COMPLETE - Wait 2 seconds then run STEP 2';
 END $$;
 
--- Step 2: Update existing 'pending' orders to 'listing'
--- (Current 'pending' should be 'listing' based on new workflow)
-DO $$
-DECLARE
-  updated_count INT;
-BEGIN
-  UPDATE public.service_orders
-  SET status = 'listing'
-  WHERE status = 'pending';
-  
-  GET DIAGNOSTICS updated_count = ROW_COUNT;
-  
-  RAISE NOTICE '✓ Updated % orders from pending to listing', updated_count;
-END $$;
+-- ============================================
+-- STEP 2: Update existing data (run after Step 1)
+-- ============================================
+-- DO $$
+-- DECLARE
+--   updated_count INT;
+-- BEGIN
+--   UPDATE public.service_orders
+--   SET status = 'listing'
+--   WHERE status = 'pending';
+--   
+--   GET DIAGNOSTICS updated_count = ROW_COUNT;
+--   
+--   RAISE NOTICE '✓ Updated % orders from pending to listing', updated_count;
+-- END $$;
 
 -- Step 3: Verify new status enum values
 SELECT 

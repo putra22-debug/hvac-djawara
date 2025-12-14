@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,6 +32,7 @@ import {
   XCircle,
   AlertCircle,
   MoreHorizontal,
+  Save,
 } from 'lucide-react'
 import { useUpdateOrder, useTechnicians, OrderStatus } from '@/hooks/use-orders'
 import { toast } from 'sonner'
@@ -64,43 +65,55 @@ export default function OrderDetailModal({ order, open, onClose, onUpdate }: Ord
   const { updateOrder, loading: updating } = useUpdateOrder()
   const { technicians } = useTechnicians()
   
+  // Form state
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>(order.status)
   const [selectedTechnician, setSelectedTechnician] = useState(order.assigned_to || '')
   const [selectedPriority, setSelectedPriority] = useState(order.priority || 'normal')
+  const [scheduledDate, setScheduledDate] = useState(order.scheduled_date || '')
+  const [scheduledTime, setScheduledTime] = useState(order.scheduled_time?.slice(0, 5) || '')
+  const [jobType, setJobType] = useState(order.job_type || '')
+  const [jobCategory, setJobCategory] = useState(order.job_category || '')
+  const [unitCategory, setUnitCategory] = useState(order.unit_category || '')
   const [notes, setNotes] = useState(order.notes || '')
   const [newNote, setNewNote] = useState('')
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [hasChanges, setHasChanges] = useState(false)
 
-  const handleUpdateStatus = async () => {
-    if (!selectedStatus) return
+  // Track changes
+  useEffect(() => {
+    const changed = 
+      selectedStatus !== order.status ||
+      selectedTechnician !== (order.assigned_to || '') ||
+      selectedPriority !== (order.priority || 'normal') ||
+      scheduledDate !== (order.scheduled_date || '') ||
+      scheduledTime !== (order.scheduled_time?.slice(0, 5) || '') ||
+      jobType !== (order.job_type || '') ||
+      jobCategory !== (order.job_category || '') ||
+      unitCategory !== (order.unit_category || '')
+    
+    setHasChanges(changed)
+  }, [selectedStatus, selectedTechnician, selectedPriority, scheduledDate, scheduledTime, jobType, jobCategory, unitCategory, order])
 
-    const success = await updateOrder(order.id, { status: selectedStatus })
+  // Single save handler for all changes
+  const handleSaveChanges = async () => {
+    if (!hasChanges) return
+
+    const updates: any = {}
+    
+    if (selectedStatus !== order.status) updates.status = selectedStatus
+    if (selectedTechnician !== (order.assigned_to || '')) updates.assigned_to = selectedTechnician
+    if (selectedPriority !== (order.priority || 'normal')) updates.priority = selectedPriority
+    if (scheduledDate !== (order.scheduled_date || '')) updates.scheduled_date = scheduledDate
+    if (scheduledTime !== (order.scheduled_time?.slice(0, 5) || '')) updates.scheduled_time = scheduledTime + ':00'
+    if (jobType !== (order.job_type || '')) updates.job_type = jobType
+    if (jobCategory !== (order.job_category || '')) updates.job_category = jobCategory
+    if (unitCategory !== (order.unit_category || '')) updates.unit_category = unitCategory
+
+    const success = await updateOrder(order.id, updates)
     
     if (success) {
-      toast.success('Status updated successfully')
-      onUpdate()
-    }
-  }
-
-  const handleAssignTechnician = async () => {
-    if (!selectedTechnician) return
-
-    const success = await updateOrder(order.id, { 
-      assigned_to: selectedTechnician,
-      status: order.status === 'pending' ? 'scheduled' : order.status,
-    })
-    
-    if (success) {
-      toast.success('Technician assigned successfully')
-      onUpdate()
-    }
-  }
-
-  const handleUpdatePriority = async () => {
-    const success = await updateOrder(order.id, { priority: selectedPriority })
-    
-    if (success) {
-      toast.success('Priority updated successfully')
+      toast.success('Order updated successfully')
+      setHasChanges(false)
       onUpdate()
     }
   }
@@ -211,114 +224,78 @@ export default function OrderDetailModal({ order, open, onClose, onUpdate }: Ord
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Scheduled Date/Time - Editable */}
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="scheduled_date">Scheduled Date</Label>
-                    <Input
-                      id="scheduled_date"
-                      type="date"
-                      defaultValue={order.scheduled_date || ''}
-                      className="mt-2"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="scheduled_time">Scheduled Time</Label>
-                    <Input
-                      id="scheduled_time"
-                      type="time"
-                      defaultValue={order.scheduled_time?.slice(0, 5) || ''}
-                      className="mt-2"
-                    />
-                  </div>
-                  <Button 
-                    onClick={async () => {
-                      const dateInput = document.getElementById('scheduled_date') as HTMLInputElement
-                      const timeInput = document.getElementById('scheduled_time') as HTMLInputElement
-                      
-                      if (dateInput.value && timeInput.value) {
-                        const success = await updateOrder(order.id, {
-                          scheduled_date: dateInput.value,
-                          scheduled_time: timeInput.value + ':00'
-                        })
-                        
-                        if (success) {
-                          toast.success('Schedule updated')
-                          onUpdate()
-                        }
-                      }
-                    }}
-                    disabled={updating}
-                    size="sm"
-                  >
-                    Update Schedule
-                  </Button>
+                {/* Scheduled Date/Time */}
+                <div>
+                  <Label htmlFor="scheduled_date">Scheduled Date</Label>
+                  <Input
+                    id="scheduled_date"
+                    type="date"
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    className="mt-2"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="scheduled_time">Scheduled Time</Label>
+                  <Input
+                    id="scheduled_time"
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    className="mt-2"
+                  />
                 </div>
 
                 {/* Technician Assignment */}
                 <div>
                   <Label htmlFor="technician">Assigned Technician</Label>
-                  <div className="flex gap-2 mt-2">
-                    <Select value={selectedTechnician} onValueChange={setSelectedTechnician}>
-                      <SelectTrigger id="technician">
-                        <SelectValue placeholder="Select technician" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {technicians.map((tech) => (
-                          <SelectItem key={tech.id} value={tech.id}>
-                            {tech.full_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={handleAssignTechnician} disabled={updating}>
-                      Update
-                    </Button>
-                  </div>
+                  <Select value={selectedTechnician} onValueChange={setSelectedTechnician}>
+                    <SelectTrigger id="technician" className="mt-2">
+                      <SelectValue placeholder="Select technician" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {technicians.map((tech) => (
+                        <SelectItem key={tech.id} value={tech.id}>
+                          {tech.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Status Update */}
+                {/* Status */}
                 <div>
                   <Label htmlFor="status">Status</Label>
-                  <div className="flex gap-2 mt-2">
-                    <Select value={selectedStatus} onValueChange={(val) => setSelectedStatus(val as OrderStatus)}>
-                      <SelectTrigger id="status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(statusConfig).map(([key, config]) => (
-                          <SelectItem key={key} value={key}>
-                            {config.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={handleUpdateStatus} disabled={updating}>
-                      Update
-                    </Button>
-                  </div>
+                  <Select value={selectedStatus} onValueChange={(val) => setSelectedStatus(val as OrderStatus)}>
+                    <SelectTrigger id="status" className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(statusConfig).map(([key, config]) => (
+                        <SelectItem key={key} value={key}>
+                          {config.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Priority Update */}
+                {/* Priority */}
                 <div>
                   <Label htmlFor="priority">Priority</Label>
-                  <div className="flex gap-2 mt-2">
-                    <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-                      <SelectTrigger id="priority">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(priorityConfig).map(([key, config]) => (
-                          <SelectItem key={key} value={key}>
-                            {config.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={handleUpdatePriority} disabled={updating}>
-                      Update
-                    </Button>
-                  </div>
+                  <Select value={selectedPriority} onValueChange={setSelectedPriority}>
+                    <SelectTrigger id="priority" className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(priorityConfig).map(([key, config]) => (
+                        <SelectItem key={key} value={key}>
+                          {config.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
@@ -331,10 +308,62 @@ export default function OrderDetailModal({ order, open, onClose, onUpdate }: Ord
                   Service Details
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-4">
+                {/* Job Type */}
                 <div>
-                  <Label className="text-xs text-gray-500">Service Type</Label>
-                  <p className="mt-1">{order.service_type || '-'}</p>
+                  <Label htmlFor="job_type">Jenis Pekerjaan</Label>
+                  <Select value={jobType} onValueChange={setJobType}>
+                    <SelectTrigger id="job_type" className="mt-2">
+                      <SelectValue placeholder="Pilih jenis pekerjaan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="checking">Checking</SelectItem>
+                      <SelectItem value="survey">Survey</SelectItem>
+                      <SelectItem value="maintenance">Pemeliharaan Unit</SelectItem>
+                      <SelectItem value="installation">Pemasangan Unit</SelectItem>
+                      <SelectItem value="troubleshooting">Troubleshooting Unit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Job Category */}
+                <div>
+                  <Label htmlFor="job_category">Kategori Pekerjaan</Label>
+                  <Select value={jobCategory} onValueChange={setJobCategory}>
+                    <SelectTrigger id="job_category" className="mt-2">
+                      <SelectValue placeholder="Pilih kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="residential">Rumah Tangga</SelectItem>
+                      <SelectItem value="commercial">Komersial</SelectItem>
+                      <SelectItem value="industrial">Industri / Central</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Unit Category */}
+                <div>
+                  <Label htmlFor="unit_category">Kategori Unit</Label>
+                  <Select value={unitCategory} onValueChange={setUnitCategory}>
+                    <SelectTrigger id="unit_category" className="mt-2">
+                      <SelectValue placeholder="Pilih kategori unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="split">Split</SelectItem>
+                      <SelectItem value="cassette">Cassette</SelectItem>
+                      <SelectItem value="standing_floor">Standing Floor</SelectItem>
+                      <SelectItem value="split_duct">Split Duct</SelectItem>
+                      <SelectItem value="vrf_vrv">VRF / VRV</SelectItem>
+                      <SelectItem value="cold_storage">Cold Storage</SelectItem>
+                      <SelectItem value="refrigerator">Refrigerator</SelectItem>
+                      <SelectItem value="other">Lain-lain</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-xs text-gray-500">Service Title</Label>
+                  <p className="mt-1">{order.service_title || '-'}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-gray-500">Description</Label>
@@ -342,6 +371,19 @@ export default function OrderDetailModal({ order, open, onClose, onUpdate }: Ord
                 </div>
               </CardContent>
             </Card>
+
+            {/* Save Changes Button */}
+            {hasChanges && (
+              <Button 
+                onClick={handleSaveChanges} 
+                disabled={updating}
+                className="w-full"
+                size="lg"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </Button>
+            )}
           </TabsContent>
 
           {/* Timeline Tab */}
