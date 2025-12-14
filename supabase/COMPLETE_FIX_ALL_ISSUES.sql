@@ -198,7 +198,7 @@ SELECT
   cd.file_type,
   cd.status,
   cd.uploaded_at,
-  p.name AS uploaded_by_name,
+  p.full_name AS uploaded_by_name,
   cd.tenant_id
 FROM public.client_documents cd
 JOIN public.clients c ON cd.client_id = c.id
