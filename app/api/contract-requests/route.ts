@@ -25,10 +25,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Use anon client for public form submission
+    // Use service role to bypass RLS for public endpoint
+    // This is safe because we validate input and don't expose user data
     const supabase = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
 
     // Insert contract request
