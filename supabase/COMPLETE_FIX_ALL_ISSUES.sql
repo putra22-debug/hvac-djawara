@@ -143,7 +143,7 @@ CREATE POLICY "Staff can view client documents" ON public.client_documents
     tenant_id IN (
       SELECT tenant_id FROM public.user_tenant_roles 
       WHERE user_id = auth.uid() 
-      AND role IN ('owner', 'admin', 'staff')
+      AND role IN ('owner', 'admin_finance', 'admin_logistic', 'tech_head')
       AND is_active = true
     )
   );
@@ -155,7 +155,7 @@ CREATE POLICY "Staff can insert client documents" ON public.client_documents
     tenant_id IN (
       SELECT tenant_id FROM public.user_tenant_roles 
       WHERE user_id = auth.uid() 
-      AND role IN ('owner', 'admin', 'staff')
+      AND role IN ('owner', 'admin_finance', 'admin_logistic', 'tech_head')
       AND is_active = true
     )
   );
@@ -167,7 +167,7 @@ CREATE POLICY "Staff can update client documents" ON public.client_documents
     tenant_id IN (
       SELECT tenant_id FROM public.user_tenant_roles 
       WHERE user_id = auth.uid() 
-      AND role IN ('owner', 'admin', 'staff')
+      AND role IN ('owner', 'admin_finance', 'admin_logistic', 'tech_head')
       AND is_active = true
     )
   );
@@ -179,7 +179,7 @@ CREATE POLICY "Staff can delete client documents" ON public.client_documents
     tenant_id IN (
       SELECT tenant_id FROM public.user_tenant_roles 
       WHERE user_id = auth.uid() 
-      AND role IN ('owner', 'admin', 'staff')
+      AND role IN ('owner', 'admin_finance', 'admin_logistic', 'tech_head')
       AND is_active = true
     )
   );
