@@ -367,6 +367,24 @@ BEGIN
   END IF;
 END $$;
 
+-- Ensure client_properties has coordinates column for location data
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'client_properties' 
+    AND column_name = 'coordinates'
+  ) THEN
+    ALTER TABLE public.client_properties 
+    ADD COLUMN coordinates JSONB;
+    
+    RAISE NOTICE '✅ Added coordinates column';
+  ELSE
+    RAISE NOTICE '✓ coordinates column already exists';
+  END IF;
+END $$;
+
 -- ================================================
 -- FINAL: VERIFICATION & SUMMARY
 -- ================================================
