@@ -103,11 +103,6 @@ BEGIN
     WHERE id = auth.uid();
   END IF;
   
-  -- If user_id is not provided, set it to current user
-  IF NEW.user_id IS NULL THEN
-    NEW.user_id := auth.uid();
-  END IF;
-  
   RETURN NEW;
 END;
 $$;
@@ -138,7 +133,6 @@ SELECT
   name,
   email,
   tenant_id,
-  user_id,
   created_at
 FROM clients
 WHERE tenant_id = (
@@ -156,13 +150,12 @@ SELECT
   c.name,
   c.email,
   c.tenant_id as client_tenant_id,
-  u.raw_user_meta_data->>'active_tenant_id' as user_active_tenant_id,
+  (SELECT raw_user_meta_data->>'active_tenant_id' FROM auth.users WHERE id = auth.uid()) as user_active_tenant_id,
   CASE 
-    WHEN c.tenant_id::text = u.raw_user_meta_data->>'active_tenant_id' THEN 'MATCH'
+    WHEN c.tenant_id::text = (SELECT raw_user_meta_data->>'active_tenant_id' FROM auth.users WHERE id = auth.uid()) THEN 'MATCH'
     ELSE 'MISMATCH'
   END as status
 FROM clients c
-LEFT JOIN auth.users u ON u.id = c.user_id
 WHERE c.created_at > CURRENT_DATE - INTERVAL '7 days'
 ORDER BY c.created_at DESC;
 
@@ -171,23 +164,22 @@ ORDER BY c.created_at DESC;
 -- UNCOMMENT AND RUN ONLY IF YOU SEE MISMATCHED CLIENTS
 
 /*
-UPDATE clients c
+UPDATE clients
 SET tenant_id = (
   SELECT (raw_user_meta_data->>'active_tenant_id')::uuid
   FROM auth.users
-  WHERE id = c.user_id
+  WHERE id = auth.uid()
 )
-WHERE c.tenant_id != (
+WHERE tenant_id != (
   SELECT (raw_user_meta_data->>'active_tenant_id')::uuid
-  FROM auth.users u
-  WHERE u.id = c.user_id
+  FROM auth.users
+  WHERE id = auth.uid()
 )
-AND c.created_at > CURRENT_DATE - INTERVAL '7 days';
+AND created_at > CURRENT_DATE - INTERVAL '7 days';
 */
 
 -- Step 9: Create index for better performance
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id ON clients(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_clients_user_id ON clients(user_id);
 
 -- Step 10: Verify RLS is working
 -- This should return count of clients visible to current user
