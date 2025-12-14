@@ -16,12 +16,43 @@ import KanbanColumn from './kanban-column'
 import KanbanCard from './kanban-card'
 import OrderDetailModal from './order-detail-modal'
 
-const columns: { id: OrderStatus; title: string; color: string }[] = [
-  { id: 'pending', title: 'Pending', color: 'bg-yellow-100 border-yellow-300' },
-  { id: 'scheduled', title: 'Scheduled', color: 'bg-blue-100 border-blue-300' },
-  { id: 'in_progress', title: 'In Progress', color: 'bg-purple-100 border-purple-300' },
-  { id: 'completed', title: 'Completed', color: 'bg-green-100 border-green-300' },
-  { id: 'cancelled', title: 'Cancelled', color: 'bg-red-100 border-red-300' },
+const columns: { id: OrderStatus; title: string; color: string; description: string }[] = [
+  { 
+    id: 'listing', 
+    title: 'Listing', 
+    color: 'bg-gray-100 border-gray-300',
+    description: 'New requests & proposals'
+  },
+  { 
+    id: 'scheduled', 
+    title: 'Scheduled', 
+    color: 'bg-blue-100 border-blue-300',
+    description: 'Approved & scheduled'
+  },
+  { 
+    id: 'in_progress', 
+    title: 'In Progress', 
+    color: 'bg-purple-100 border-purple-300',
+    description: 'Survey, action, checking'
+  },
+  { 
+    id: 'pending', 
+    title: 'Pending', 
+    color: 'bg-orange-100 border-orange-300',
+    description: 'On hold (parts/reschedule)'
+  },
+  { 
+    id: 'completed', 
+    title: 'Completed', 
+    color: 'bg-green-100 border-green-300',
+    description: 'Finished & clear'
+  },
+  { 
+    id: 'cancelled', 
+    title: 'Cancelled', 
+    color: 'bg-red-100 border-red-300',
+    description: 'Cancelled work'
+  },
 ]
 
 export default function ScheduleKanbanView() {
@@ -71,14 +102,18 @@ export default function ScheduleKanbanView() {
     const order = orders.find(o => o.id === orderId)
     if (!order || order.status === newStatus) return
 
+    // Show immediate feedback (optimistic update)
+    toast.success(`Moving to ${newStatus}...`)
+
     // Update order status
     const success = await updateOrder(orderId, { status: newStatus })
     
     if (success) {
-      toast.success(`Order moved to ${newStatus}`)
-      refetch()
+      // Refetch silently in background
+      setTimeout(() => refetch(), 500)
     } else {
       toast.error('Failed to update order status')
+      refetch()
     }
   }
 
@@ -110,12 +145,13 @@ export default function ScheduleKanbanView() {
   return (
     <div className="space-y-6">
       {/* Header Stats */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-6 gap-3">
         {columns.map(col => (
           <Card key={col.id} className={col.color}>
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="text-2xl font-bold">{ordersByStatus[col.id].length}</div>
-              <div className="text-sm text-gray-600">{col.title}</div>
+              <div className="text-sm font-medium text-gray-700">{col.title}</div>
+              <div className="text-xs text-gray-500 mt-1">{col.description}</div>
             </CardContent>
           </Card>
         ))}
@@ -127,7 +163,7 @@ export default function ScheduleKanbanView() {
         onDragEnd={handleDragEnd}
         collisionDetection={closestCorners}
       >
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-6 gap-3 overflow-x-auto">
           {columns.map(column => (
             <KanbanColumn
               key={column.id}
@@ -135,6 +171,7 @@ export default function ScheduleKanbanView() {
               title={column.title}
               count={ordersByStatus[column.id].length}
               color={column.color}
+              description={column.description}
             >
               <SortableContext
                 items={ordersByStatus[column.id].map(o => o.id)}

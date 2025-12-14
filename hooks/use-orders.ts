@@ -8,7 +8,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { useState, useEffect, useCallback } from 'react'
 
-export type OrderStatus = 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+export type OrderStatus = 'listing' | 'scheduled' | 'in_progress' | 'pending' | 'completed' | 'cancelled'
 export type OrderType = 'installation' | 'maintenance' | 'repair' | 'survey' | 'troubleshooting' | 'konsultasi' | 'pengadaan'
 export type Priority = 'low' | 'medium' | 'high' | 'urgent'
 

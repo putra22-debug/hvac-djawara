@@ -34,14 +34,31 @@ export default function KanbanCard({ order, onClick, isDragging }: KanbanCardPro
     urgent: 'bg-red-100 text-red-700',
   }
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onClick?.()
+  }
+
   return (
     <Card
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-white"
-      onClick={onClick}
+      className="hover:shadow-md transition-shadow bg-white relative group"
+    >
+      {/* Drag Handle */}
+      <div
+        {...listeners}
+        className="absolute top-2 right-2 p-1 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Drag to move"
+      >
+        <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+        </svg>
+      </div>
+      
+      {/* Clickable Content */}
+      <div onClick={handleClick} className="cursor-pointer"
     >
       <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between">
@@ -85,6 +102,7 @@ export default function KanbanCard({ order, onClick, isDragging }: KanbanCardPro
           </div>
         )}
       </CardContent>
+      </div>
     </Card>
   )
 }

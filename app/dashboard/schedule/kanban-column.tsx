@@ -7,10 +7,11 @@ interface KanbanColumnProps {
   title: string
   count: number
   color: string
+  description?: string
   children: React.ReactNode
 }
 
-export default function KanbanColumn({ id, title, count, color, children }: KanbanColumnProps) {
+export default function KanbanColumn({ id, title, count, color, description, children }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
 
   return (
@@ -25,8 +26,11 @@ export default function KanbanColumn({ id, title, count, color, children }: Kanb
             {count}
           </Badge>
         </CardTitle>
+        {description && (
+          <p className="text-xs text-gray-500 mt-1">{description}</p>
+        )}
       </CardHeader>
-      <CardContent className="space-y-2 min-h-[500px]">
+      <CardContent className="space-y-2 min-h-[450px]">
         {children}
       </CardContent>
     </Card>
