@@ -1,0 +1,409 @@
+// ============================================
+// Client Properties Management
+// Manage multiple locations per client
+// ============================================
+
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { 
+  Plus, 
+  Edit, 
+  Trash2, 
+  MapPin,
+  Building,
+  Home,
+  Loader2,
+  AlertCircle,
+  Star
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+interface Property {
+  id: string
+  property_name: string
+  property_type: 'residential' | 'commercial'
+  address: string
+  city: string
+  postal_code: string
+  coordinates?: string
+  is_primary: boolean
+  ac_unit_count?: number
+}
+
+interface PropertyManagementProps {
+  clientId: string
+}
+
+export function PropertyManagement({ clientId }: PropertyManagementProps) {
+  const [properties, setProperties] = useState<Property[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const supabase = createClient()
+
+  const [formData, setFormData] = useState({
+    property_name: '',
+    property_type: 'residential' as 'residential' | 'commercial',
+    address: '',
+    city: '',
+    postal_code: '',
+    coordinates: '',
+    is_primary: false
+  })
+
+  useEffect(() => {
+    fetchProperties()
+  }, [clientId])
+
+  async function fetchProperties() {
+    try {
+      // Fetch properties with AC unit count
+      const { data, error: fetchError } = await supabase
+        .from('client_properties')
+        .select(`
+          *,
+          ac_units(count)
+        `)
+        .eq('client_id', clientId)
+        .order('is_primary', { ascending: false })
+        .order('created_at', { ascending: false })
+
+      if (fetchError) throw fetchError
+
+      const formatted = data?.map(p => ({
+        ...p,
+        ac_unit_count: p.ac_units?.[0]?.count || 0
+      })) || []
+
+      setProperties(formatted)
+    } catch (err) {
+      console.error('Error fetching properties:', err)
+      setError('Failed to load properties')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+
+    try {
+      if (editingId) {
+        // Update existing property
+        const { error: updateError } = await supabase
+          .from('client_properties')
+          .update(formData)
+          .eq('id', editingId)
+
+        if (updateError) throw updateError
+      } else {
+        // Add new property
+        const { error: insertError } = await supabase
+          .from('client_properties')
+          .insert({
+            client_id: clientId,
+            ...formData
+          })
+
+        if (insertError) throw insertError
+      }
+
+      resetForm()
+      fetchProperties()
+    } catch (err) {
+      console.error('Error saving property:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save property')
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this property? All AC units will also be removed.')) return
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('client_properties')
+        .delete()
+        .eq('id', id)
+
+      if (deleteError) throw deleteError
+      fetchProperties()
+    } catch (err) {
+      console.error('Error deleting property:', err)
+      setError('Failed to delete property')
+    }
+  }
+
+  async function handleSetPrimary(id: string) {
+    try {
+      // Remove primary from all properties
+      await supabase
+        .from('client_properties')
+        .update({ is_primary: false })
+        .eq('client_id', clientId)
+
+      // Set new primary
+      const { error: updateError } = await supabase
+        .from('client_properties')
+        .update({ is_primary: true })
+        .eq('id', id)
+
+      if (updateError) throw updateError
+      fetchProperties()
+    } catch (err) {
+      console.error('Error setting primary:', err)
+      setError('Failed to set primary property')
+    }
+  }
+
+  function startEdit(property: Property) {
+    setFormData({
+      property_name: property.property_name,
+      property_type: property.property_type,
+      address: property.address,
+      city: property.city,
+      postal_code: property.postal_code,
+      coordinates: property.coordinates || '',
+      is_primary: property.is_primary
+    })
+    setEditingId(property.id)
+    setShowForm(true)
+  }
+
+  function resetForm() {
+    setFormData({
+      property_name: '',
+      property_type: 'residential',
+      address: '',
+      city: '',
+      postal_code: '',
+      coordinates: '',
+      is_primary: false
+    })
+    setEditingId(null)
+    setShowForm(false)
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="py-8 flex justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Property Management</CardTitle>
+            <p className="text-sm text-gray-500 mt-1">
+              Manage client locations and properties
+            </p>
+          </div>
+          {!showForm && (
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Property
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {error && (
+          <Alert className="border-red-200 bg-red-50">
+            <AlertCircle className="w-4 h-4 text-red-600" />
+            <AlertDescription className="text-red-800">{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Add/Edit Form */}
+        {showForm && (
+          <Card className="border-2 border-blue-200">
+            <CardContent className="pt-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Property Name *
+                    </label>
+                    <Input
+                      value={formData.property_name}
+                      onChange={(e) => setFormData({ ...formData, property_name: e.target.value })}
+                      placeholder="e.g., Main Office, Home Address"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Property Type *
+                    </label>
+                    <select
+                      value={formData.property_type}
+                      onChange={(e) => setFormData({ ...formData, property_type: e.target.value as 'residential' | 'commercial' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      required
+                    >
+                      <option value="residential">Residential</option>
+                      <option value="commercial">Commercial</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address *
+                  </label>
+                  <textarea
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      City *
+                    </label>
+                    <Input
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Postal Code
+                    </label>
+                    <Input
+                      value={formData.postal_code}
+                      onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Coordinates (Optional)
+                  </label>
+                  <Input
+                    value={formData.coordinates}
+                    onChange={(e) => setFormData({ ...formData, coordinates: e.target.value })}
+                    placeholder="-6.200000, 106.816666"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_primary"
+                    checked={formData.is_primary}
+                    onChange={(e) => setFormData({ ...formData, is_primary: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="is_primary" className="text-sm font-medium text-gray-700">
+                    Set as primary property
+                  </label>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button type="submit" className="flex-1">
+                    {editingId ? 'Update Property' : 'Add Property'}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={resetForm}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Property List */}
+        {properties.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <MapPin className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p>No properties added yet</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {properties.map((property) => (
+              <Card key={property.id} className={property.is_primary ? 'border-blue-300 bg-blue-50' : ''}>
+                <CardContent className="py-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        {property.property_type === 'residential' ? (
+                          <Home className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <Building className="w-4 h-4 text-gray-400" />
+                        )}
+                        <h4 className="font-semibold text-gray-900">
+                          {property.property_name}
+                        </h4>
+                        {property.is_primary && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
+                            <Star className="w-3 h-3" />
+                            Primary
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1">{property.address}</p>
+                      <p className="text-sm text-gray-500">{property.city} {property.postal_code}</p>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {property.ac_unit_count} AC Unit(s)
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {!property.is_primary && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSetPrimary(property.id)}
+                          title="Set as primary"
+                        >
+                          <Star className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => startEdit(property)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDelete(property.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
