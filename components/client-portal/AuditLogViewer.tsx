@@ -50,7 +50,7 @@ export function AuditLogViewer({ clientId }: AuditLogViewerProps) {
           *,
           profiles!changed_by (
             id,
-            name
+            full_name
           )
         `)
         .eq('client_id', clientId)
@@ -61,7 +61,7 @@ export function AuditLogViewer({ clientId }: AuditLogViewerProps) {
 
       const formatted = data?.map(log => ({
         ...log,
-        staff_name: log.profiles?.name || 'System'
+        staff_name: log.profiles?.full_name || 'System'
       })) || []
 
       setLogs(formatted)
