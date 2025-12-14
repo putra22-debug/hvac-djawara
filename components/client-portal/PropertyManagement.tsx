@@ -22,9 +22,13 @@ import {
   AlertCircle,
   Star,
   Calendar,
-  CalendarPlus
+  CalendarPlus,
+  Upload,
+  X,
+  Image as ImageIcon
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import Image from 'next/image'
 
 interface Property {
   id: string
@@ -37,6 +41,7 @@ interface Property {
   coordinates?: string
   is_primary: boolean
   ac_unit_count?: number
+  photos?: string[]
   schedule?: {
     frequency: string
     next_scheduled_date: string | null
@@ -85,8 +90,12 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
     city: '',
     postal_code: '',
     coordinates: '',
-    is_primary: false
+    is_primary: false,
+    photos: [] as string[] // Array of Supabase Storage URLs
   })
+  const [photoFiles, setPhotoFiles] = useState<File[]>([])
+  const [photoPreview, setPhotoPreview] = useState<string[]>([])
+  const [uploadingPhotos, setUploadingPhotos] = useState(false)
 
   useEffect(() => {
     fetchProperties()
@@ -139,11 +148,24 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
     setError(null)
 
     try {
+      // Upload photos first if any
+      let photoUrls = [...formData.photos] // Keep existing photos
+      if (photoFiles.length > 0) {
+        setUploadingPhotos(true)
+        const newUrls = await uploadPhotos()
+        photoUrls = [...photoUrls, ...newUrls]
+      }
+
+      const dataToSave = {
+        ...formData,
+        photos: photoUrls
+      }
+
       if (editingId) {
         // Update existing property
         const { error: updateError } = await supabase
           .from('client_properties')
-          .update(formData)
+          .update(dataToSave)
           .eq('id', editingId)
 
         if (updateError) throw updateError
@@ -160,7 +182,7 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
           .insert({
             client_id: clientId,
             tenant_id: profile?.active_tenant_id,
-            ...formData
+            ...dataToSave
           })
 
         if (insertError) throw insertError
@@ -171,6 +193,100 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
     } catch (err) {
       console.error('Error saving property:', err)
       setError(err instanceof Error ? err.message : 'Failed to save property')
+    } finally {
+      setUploadingPhotos(false)
+    }
+  }
+
+  async function uploadPhotos(): Promise<string[]> {
+    const uploadedUrls: string[] = []
+
+    for (const file of photoFiles) {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${clientId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+
+      const { data, error } = await supabase.storage
+        .from('property-photos')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (error) {
+        console.error('Error uploading photo:', error)
+        continue
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('property-photos')
+        .getPublicUrl(data.path)
+
+      uploadedUrls.push(publicUrl)
+    }
+
+    return uploadedUrls
+  }
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    
+    // Validate files
+    const validFiles = files.filter(file => {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      
+      if (!validTypes.includes(file.type)) {
+        setError('Only JPG, PNG, and WebP images are allowed')
+        return false
+      }
+      
+      if (file.size > maxSize) {
+        setError('File size must be less than 5MB')
+        return false
+      }
+      
+      return true
+    })
+
+    if (validFiles.length === 0) return
+
+    setPhotoFiles(prev => [...prev, ...validFiles])
+
+    // Generate preview URLs
+    validFiles.forEach(file => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhotoPreview(prev => [...prev, reader.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  function removePhotoPreview(index: number) {
+    setPhotoFiles(prev => prev.filter((_, i) => i !== index))
+    setPhotoPreview(prev => prev.filter((_, i) => i !== index))
+  }
+
+  async function removeExistingPhoto(url: string) {
+    if (!confirm('Delete this photo?')) return
+
+    try {
+      // Extract path from URL
+      const urlParts = url.split('/property-photos/')
+      if (urlParts.length > 1) {
+        const path = urlParts[1]
+        await supabase.storage.from('property-photos').remove([path])
+      }
+
+      // Update formData
+      setFormData(prev => ({
+        ...prev,
+        photos: prev.photos.filter(p => p !== url)
+      }))
+    } catch (err) {
+      console.error('Error deleting photo:', err)
+      setError('Failed to delete photo')
     }
   }
 
@@ -222,8 +338,11 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
       city: property.city,
       postal_code: property.postal_code,
       coordinates: property.coordinates || '',
-      is_primary: property.is_primary
+      is_primary: property.is_primary,
+      photos: (property as any).photos || [] // Load existing photos
     })
+    setPhotoFiles([])
+    setPhotoPreview([])
     setEditingId(property.id)
     setShowForm(true)
   }
@@ -237,8 +356,11 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
       city: '',
       postal_code: '',
       coordinates: '',
-      is_primary: false
+      is_primary: false,
+      photos: []
     })
+    setPhotoFiles([])
+    setPhotoPreview([])
     setEditingId(null)
     setShowForm(false)
   }
@@ -445,6 +567,90 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
                   />
                 </div>
 
+                {/* Photo Upload Section */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Location Photos
+                  </label>
+                  
+                  {/* Existing Photos */}
+                  {formData.photos.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3">
+                      {formData.photos.map((url, index) => (
+                        <div key={url} className="relative group">
+                          <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200">
+                            <Image
+                              src={url}
+                              alt={`Property photo ${index + 1}`}
+                              width={200}
+                              height={200}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeExistingPhoto(url)}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* New Photo Previews */}
+                  {photoPreview.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3">
+                      {photoPreview.map((preview, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square rounded-lg overflow-hidden border-2 border-blue-300 bg-blue-50">
+                            <Image
+                              src={preview}
+                              alt={`New photo ${index + 1}`}
+                              width={200}
+                              height={200}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removePhotoPreview(index)}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                          <div className="absolute bottom-2 left-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded">
+                            New
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Upload Button */}
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 cursor-pointer">
+                      <div className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                        <Upload className="w-5 h-5 text-gray-400" />
+                        <span className="text-sm text-gray-600">
+                          {photoPreview.length > 0 ? 'Add More Photos' : 'Upload Photos'}
+                        </span>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        multiple
+                        onChange={handlePhotoSelect}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    JPG, PNG, or WebP • Max 5MB per file • Multiple files allowed
+                  </p>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -459,10 +665,17 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                  <Button type="submit" className="flex-1">
-                    {editingId ? 'Update Property' : 'Add Property'}
+                  <Button type="submit" className="flex-1" disabled={uploadingPhotos}>
+                    {uploadingPhotos ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Uploading Photos...
+                      </>
+                    ) : (
+                      editingId ? 'Update Property' : 'Add Property'
+                    )}
                   </Button>
-                  <Button type="button" variant="outline" onClick={resetForm}>
+                  <Button type="button" variant="outline" onClick={resetForm} disabled={uploadingPhotos}>
                     Cancel
                   </Button>
                 </div>
@@ -505,6 +718,33 @@ export function PropertyManagement({ clientId }: PropertyManagementProps) {
                       </div>
                       <p className="text-sm text-gray-600 mb-1">{property.address}</p>
                       <p className="text-sm text-gray-500">{property.city} {property.postal_code}</p>
+                      
+                      {/* Photo Gallery */}
+                      {(property as any).photos?.length > 0 && (
+                        <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+                          {(property as any).photos.slice(0, 4).map((url: string, idx: number) => (
+                            <div key={idx} className="relative flex-shrink-0">
+                              <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                                <Image
+                                  src={url}
+                                  alt={`${property.property_name} photo ${idx + 1}`}
+                                  width={80}
+                                  height={80}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              {idx === 3 && (property as any).photos.length > 4 && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
+                                  <span className="text-white text-xs font-semibold">
+                                    +{(property as any).photos.length - 4}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
                       <div className="flex items-center gap-3 mt-2">
                         <p className="text-xs text-gray-400">
                           {property.ac_unit_count} AC Unit(s)
