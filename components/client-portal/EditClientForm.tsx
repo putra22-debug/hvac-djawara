@@ -15,9 +15,11 @@ import {
   X, 
   Loader2,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Upload
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import Image from 'next/image'
 
 interface EditClientFormProps {
   client: any
@@ -39,10 +41,81 @@ export function EditClientForm({ client, onSave, onCancel }: EditClientFormProps
     notes_internal: client.notes_internal || '',
   })
   
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(client.avatar_url || null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const supabase = createClient()
+
+  async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    const maxSize = 5 * 1024 * 1024 // 5MB
+
+    if (!validTypes.includes(file.type)) {
+      setError('Only JPG, PNG, and WebP images are allowed')
+      return
+    }
+
+    if (file.size > maxSize) {
+      setError('File size must be less than 5MB')
+      return
+    }
+
+    setAvatarFile(file)
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  async function removeAvatar() {
+    if (avatarPreview && !avatarFile && client.avatar_url) {
+      // Delete from storage
+      const urlParts = client.avatar_url.split('/client-avatars/')
+      if (urlParts.length > 1) {
+        await supabase.storage.from('client-avatars').remove([urlParts[1]])
+      }
+    }
+    setAvatarFile(null)
+    setAvatarPreview(null)
+  }
+
+  async function uploadAvatar(): Promise<string | null> {
+    if (!avatarFile) return avatarPreview
+
+    setUploadingAvatar(true)
+    try {
+      const fileExt = avatarFile.name.split('.').pop()
+      const fileName = `${client.id}.${fileExt}`
+
+      const { data, error } = await supabase.storage
+        .from('client-avatars')
+        .upload(fileName, avatarFile, {
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (error) throw error
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('client-avatars')
+        .getPublicUrl(data.path)
+
+      return publicUrl
+    } catch (error) {
+      console.error('Error uploading avatar:', error)
+      return null
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -50,10 +123,18 @@ export function EditClientForm({ client, onSave, onCancel }: EditClientFormProps
     setError(null)
     
     try {
+      let avatarUrl = avatarPreview
+
+      // Upload avatar if changed
+      if (avatarFile) {
+        avatarUrl = await uploadAvatar()
+      }
+
       const { error: updateError } = await supabase
         .from('clients')
         .update({
           ...formData,
+          avatar_url: avatarUrl,
           updated_at: new Date().toISOString()
         })
         .eq('id', client.id)
@@ -96,6 +177,67 @@ export function EditClientForm({ client, onSave, onCancel }: EditClientFormProps
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Avatar Upload */}
+          <div className="flex items-center gap-6 pb-6 border-b">
+            <div className="relative">
+              {avatarPreview ? (
+                <div className="relative group">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-200">
+                    <Image
+                      src={avatarPreview}
+                      alt={client.name}
+                      width={128}
+                      height={128}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeAvatar}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center border-4 border-gray-200">
+                  <span className="text-4xl font-bold text-blue-600">
+                    {client.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="block">
+                <div className="cursor-pointer">
+                  <Button type="button" variant="outline" className="mb-2" onClick={() => document.getElementById('avatar-upload-edit')?.click()}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    {avatarPreview ? 'Change Avatar' : 'Upload Avatar'}
+                  </Button>
+                  <input
+                    id="avatar-upload-edit"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleAvatarSelect}
+                    className="hidden"
+                  />
+                </div>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                JPG, PNG, or WebP • Max 5MB • Recommended 512x512px
+              </p>
+              {avatarPreview && (
+                <button
+                  type="button"
+                  onClick={removeAvatar}
+                  className="text-xs text-red-600 hover:text-red-700 mt-2"
+                >
+                  Remove avatar
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-900">Basic Information</h3>
