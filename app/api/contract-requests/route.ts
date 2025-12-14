@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Insert contract request
     const { data, error } = await supabase
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from('contract_requests')
