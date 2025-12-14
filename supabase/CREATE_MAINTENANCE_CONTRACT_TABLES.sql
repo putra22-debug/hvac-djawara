@@ -215,10 +215,10 @@ CREATE POLICY "Users can manage contract locations"
   USING (
     contract_id IN (
       SELECT id FROM public.maintenance_contracts
-      WHERE tenant_id IN 
-    tenant_id IN (
-      SELECT tenant_id FROM public.user_tenant_roles
-      WHERE user_id = auth.uid() AND is_active = true
+      WHERE tenant_id IN (
+        SELECT tenant_id FROM public.user_tenant_roles
+        WHERE user_id = auth.uid() AND is_active = true
+      )
     )
   );
 
@@ -242,14 +242,14 @@ CREATE POLICY "Users can manage contract units"
   USING (
     contract_id IN (
       SELECT id FROM public.maintenance_contracts
-      WH8RE tenant_id IN (
+      WHERE tenant_id IN (
         SELECT tenant_id FROM public.user_tenant_roles
         WHERE user_id = auth.uid() AND is_active = true
       )
     )
   );
 
--- PolicEes for generated_schedules
+-- Policies for generated_schedules
 DROP POLICY IF EXISTS "Users can view schedules in their tenant" ON public.generated_schedules;
 CREATE POLICY "Users can view schedules in their tenant"
   ON public.generated_schedules FOR SELECT
@@ -288,11 +288,7 @@ CREATE TRIGGER generated_schedules_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_maintenance_contract_updated_at();
 
--- Step 8: Verify tables created
-DO $$locations', 'contract_
-BEGIN
-  RAISE NOTICE '';
-  RAISE 9: Verify tables created
+-- Step 9: Verify tables created
 DO $$
 BEGIN
   RAISE NOTICE '';
@@ -326,4 +322,6 @@ SELECT
   data_type,
   is_nullable
 FROM information_schema.columns
-WHERE table_name IN ('maintenance_contracts', 'contract_location
+WHERE table_name IN ('maintenance_contracts', 'contract_locations', 'contract_units', 'generated_schedules')
+AND table_schema = 'public'
+ORDER BY table_name, ordinal_position;
