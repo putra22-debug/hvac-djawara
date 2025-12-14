@@ -1,7 +1,3 @@
-# Ignore incomplete dashboard features during deployment
-app/(dashboard)
-app/(auth)
-app/api/attendance
-domain
-hooks/use-clients.ts
-hooks/use-tenants.ts
+# Archive folders - not needed for production
+archive/
+supabase/migrations/03_scheduling_workforce/
