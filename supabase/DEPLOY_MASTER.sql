@@ -230,12 +230,13 @@ CREATE TABLE IF NOT EXISTS public.tenants (
   )
 );
 
-CREATE INDEX idx_tenants_slug ON public.tenants(slug);
-CREATE INDEX idx_tenants_subscription_status ON public.tenants(subscription_status);
-CREATE INDEX idx_tenants_is_active ON public.tenants(is_active) WHERE is_active = true;
-CREATE INDEX idx_tenants_subscription_expires ON public.tenants(subscription_expires_at) 
+CREATE INDEX IF NOT EXISTS idx_tenants_slug ON public.tenants(slug);
+CREATE INDEX IF NOT EXISTS idx_tenants_subscription_status ON public.tenants(subscription_status);
+CREATE INDEX IF NOT EXISTS idx_tenants_is_active ON public.tenants(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_tenants_subscription_expires ON public.tenants(subscription_expires_at) 
   WHERE subscription_status = 'trial';
 
+DROP TRIGGER IF EXISTS set_updated_at ON public.tenants;
 CREATE TRIGGER set_updated_at
   BEFORE UPDATE ON public.tenants
   FOR EACH ROW
@@ -251,6 +252,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS auto_generate_slug ON public.tenants;
 CREATE TRIGGER auto_generate_slug
   BEFORE INSERT ON public.tenants
   FOR EACH ROW
@@ -280,10 +282,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_profiles_active_tenant ON public.profiles(active_tenant_id);
-CREATE INDEX idx_profiles_full_name ON public.profiles(full_name) 
+CREATE INDEX IF NOT EXISTS idx_profiles_active_tenant ON public.profiles(active_tenant_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_full_name ON public.profiles(full_name) 
   WHERE full_name IS NOT NULL;
 
+DROP TRIGGER IF EXISTS set_updated_at ON public.profiles;
 CREATE TRIGGER set_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW
@@ -302,6 +305,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
@@ -334,14 +338,15 @@ CREATE TABLE IF NOT EXISTS public.user_tenant_roles (
   CONSTRAINT self_assignment_check CHECK (user_id != assigned_by OR assigned_by IS NULL)
 );
 
-CREATE INDEX idx_user_tenant_roles_user ON public.user_tenant_roles(user_id);
-CREATE INDEX idx_user_tenant_roles_tenant ON public.user_tenant_roles(tenant_id);
-CREATE INDEX idx_user_tenant_roles_role ON public.user_tenant_roles(role);
-CREATE INDEX idx_user_tenant_roles_active ON public.user_tenant_roles(user_id, tenant_id) 
+CREATE INDEX IF NOT EXISTS idx_user_tenant_roles_user ON public.user_tenant_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tenant_roles_tenant ON public.user_tenant_roles(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_user_tenant_roles_role ON public.user_tenant_roles(role);
+CREATE INDEX IF NOT EXISTS idx_user_tenant_roles_active ON public.user_tenant_roles(user_id, tenant_id) 
   WHERE is_active = true;
-CREATE INDEX idx_user_tenant_roles_branch ON public.user_tenant_roles(branch_id) 
+CREATE INDEX IF NOT EXISTS idx_user_tenant_roles_branch ON public.user_tenant_roles(branch_id) 
   WHERE branch_id IS NOT NULL;
 
+DROP TRIGGER IF EXISTS set_updated_at ON public.user_tenant_roles;
 CREATE TRIGGER set_updated_at
   BEFORE UPDATE ON public.user_tenant_roles
   FOR EACH ROW
@@ -358,6 +363,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS auto_set_first_active_tenant ON public.user_tenant_roles;
 CREATE TRIGGER auto_set_first_active_tenant
   AFTER INSERT ON public.user_tenant_roles
   FOR EACH ROW
@@ -467,8 +473,7 @@ END $$;
 -- ============================================
 
 -- ================================================
--- 4.1 TENANTS POLICIES
--- ================================================
+DROP POLICY IF EXISTS "users_view_accessible_tenants" ON public.tenants;
 CREATE POLICY "users_view_accessible_tenants"
 ON public.tenants
 FOR SELECT
@@ -481,6 +486,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "owners_update_own_tenant" ON public.tenants;
 CREATE POLICY "owners_update_own_tenant"
 ON public.tenants
 FOR UPDATE
@@ -493,6 +499,7 @@ WITH CHECK (
   AND public.has_role(ARRAY['owner'])
 );
 
+DROP POLICY IF EXISTS "system_insert_tenants" ON public.tenants;
 CREATE POLICY "system_insert_tenants"
 ON public.tenants
 FOR INSERT
@@ -503,19 +510,20 @@ DO $$ BEGIN
 END $$;
 
 -- ================================================
--- 4.2 PROFILES POLICIES
--- ================================================
+DROP POLICY IF EXISTS "users_view_own_profile" ON public.profiles;
 CREATE POLICY "users_view_own_profile"
 ON public.profiles
 FOR SELECT
 USING (id = auth.uid());
 
+DROP POLICY IF EXISTS "users_update_own_profile" ON public.profiles;
 CREATE POLICY "users_update_own_profile"
 ON public.profiles
 FOR UPDATE
 USING (id = auth.uid())
 WITH CHECK (id = auth.uid());
 
+DROP POLICY IF EXISTS "owners_view_tenant_profiles" ON public.profiles;
 CREATE POLICY "owners_view_tenant_profiles"
 ON public.profiles
 FOR SELECT
@@ -528,6 +536,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "system_insert_profiles" ON public.profiles;
 CREATE POLICY "system_insert_profiles"
 ON public.profiles
 FOR INSERT
@@ -538,13 +547,13 @@ DO $$ BEGIN
 END $$;
 
 -- ================================================
--- 4.3 USER_TENANT_ROLES POLICIES
--- ================================================
+DROP POLICY IF EXISTS "users_view_own_roles" ON public.user_tenant_roles;
 CREATE POLICY "users_view_own_roles"
 ON public.user_tenant_roles
 FOR SELECT
 USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "owners_view_tenant_roles" ON public.user_tenant_roles;
 CREATE POLICY "owners_view_tenant_roles"
 ON public.user_tenant_roles
 FOR SELECT
@@ -553,6 +562,7 @@ USING (
   AND public.has_role(ARRAY['owner'])
 );
 
+DROP POLICY IF EXISTS "owners_insert_tenant_roles" ON public.user_tenant_roles;
 CREATE POLICY "owners_insert_tenant_roles"
 ON public.user_tenant_roles
 FOR INSERT
@@ -562,6 +572,7 @@ WITH CHECK (
   AND role != 'owner'
 );
 
+DROP POLICY IF EXISTS "owners_update_tenant_roles" ON public.user_tenant_roles;
 CREATE POLICY "owners_update_tenant_roles"
 ON public.user_tenant_roles
 FOR UPDATE
@@ -575,6 +586,7 @@ WITH CHECK (
   AND role != 'owner'
 );
 
+DROP POLICY IF EXISTS "owners_delete_tenant_roles" ON public.user_tenant_roles;
 CREATE POLICY "owners_delete_tenant_roles"
 ON public.user_tenant_roles
 FOR DELETE
@@ -584,6 +596,7 @@ USING (
   AND role != 'owner'
 );
 
+DROP POLICY IF EXISTS "system_insert_initial_owner" ON public.user_tenant_roles;
 CREATE POLICY "system_insert_initial_owner"
 ON public.user_tenant_roles
 FOR INSERT
@@ -591,7 +604,7 @@ WITH CHECK (
   role = 'owner'
   AND NOT EXISTS (
     SELECT 1 FROM public.user_tenant_roles
-    WHERE tenant_id = NEW.tenant_id
+    WHERE tenant_id = user_tenant_roles.tenant_id
     AND role = 'owner'
   )
 );
