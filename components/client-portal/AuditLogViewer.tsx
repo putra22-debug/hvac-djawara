@@ -19,13 +19,13 @@ import { createClient } from '@/lib/supabase/client'
 
 interface AuditLog {
   id: string
-  changed_at: string
+  created_at: string
   changed_by: string
-  changed_fields: string[]
-  old_data: any
-  new_data: any
+  change_type: string
+  old_values: any
+  new_values: any
+  changes_summary: string
   staff_name?: string
-  staff_email?: string
 }
 
 interface AuditLogViewerProps {
@@ -48,21 +48,20 @@ export function AuditLogViewer({ clientId }: AuditLogViewerProps) {
         .from('client_audit_log')
         .select(`
           *,
-          staff:changed_by (
-            full_name,
-            email
+          profiles!changed_by (
+            id,
+            name
           )
         `)
         .eq('client_id', clientId)
-        .order('changed_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(50)
 
       if (fetchError) throw fetchError
 
       const formatted = data?.map(log => ({
         ...log,
-        staff_name: log.staff?.full_name || 'System',
-        staff_email: log.staff?.email || ''
+        staff_name: log.profiles?.name || 'System'
       })) || []
 
       setLogs(formatted)
@@ -72,29 +71,6 @@ export function AuditLogViewer({ clientId }: AuditLogViewerProps) {
     } finally {
       setLoading(false)
     }
-  }
-
-  function formatValue(value: any): string {
-    if (value === null || value === undefined) return '-'
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No'
-    if (typeof value === 'object') return JSON.stringify(value)
-    return String(value)
-  }
-
-  function getFieldLabel(field: string): string {
-    const labels: Record<string, string> = {
-      name: 'Name',
-      email: 'Email',
-      phone: 'Phone',
-      address: 'Address',
-      client_type: 'Client Type',
-      pic_name: 'PIC Name',
-      pic_phone: 'PIC Phone',
-      company_npwp: 'NPWP',
-      company_address_npwp: 'NPWP Address',
-      notes_internal: 'Internal Notes'
-    }
-    return labels[field] || field
   }
 
   if (loading) {
@@ -143,49 +119,36 @@ export function AuditLogViewer({ clientId }: AuditLogViewerProps) {
                       <User className="w-4 h-4 text-gray-400" />
                       <div>
                         <p className="font-medium text-gray-900">{log.staff_name}</p>
-                        {log.staff_email && (
-                          <p className="text-xs text-gray-500">{log.staff_email}</p>
-                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <Clock className="w-3 h-3" />
-                      {new Date(log.changed_at).toLocaleString('id-ID', {
+                      {new Date(log.created_at).toLocaleString('id-ID', {
                         dateStyle: 'medium',
                         timeStyle: 'short'
                       })}
                     </div>
                   </div>
 
-                  {/* Changed Fields */}
+                  {/* Changes Summary */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-gray-700">
-                      Modified Fields ({log.changed_fields.length}):
+                      {log.change_type === 'created' ? 'Record Created' : 'Changes Made'}:
                     </p>
                     
-                    <div className="space-y-3">
-                      {log.changed_fields.map((field) => (
-                        <div key={field} className="bg-gray-50 rounded p-3">
-                          <p className="text-sm font-medium text-gray-900 mb-2">
-                            {getFieldLabel(field)}
-                          </p>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">Old Value</p>
-                              <p className="text-gray-700 break-words">
-                                {formatValue(log.old_data?.[field])}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">New Value</p>
-                              <p className="text-blue-700 font-medium break-words">
-                                {formatValue(log.new_data?.[field])}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    {log.change_type === 'updated' && log.changes_summary ? (
+                      <div className="bg-gray-50 rounded p-3">
+                        <p className="text-sm text-gray-700 break-words">
+                          {log.changes_summary}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-green-50 rounded p-3">
+                        <p className="text-sm text-green-700">
+                          New client record created
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

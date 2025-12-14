@@ -152,6 +152,81 @@ Tiap unit tracked dengan detail lengkap: specs, history, condition.
 Linked to maintenance contracts dan service orders.';
 
 -- ================================================
+-- FUNCTION: Track Client Changes (Audit Trail)
+-- ================================================
+
+CREATE OR REPLACE FUNCTION public.track_client_changes()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_changes TEXT := '';
+  v_old_json JSONB;
+  v_new_json JSONB;
+BEGIN
+  -- Convert records to JSONB
+  v_old_json := to_jsonb(OLD);
+  v_new_json := to_jsonb(NEW);
+  
+  -- Generate summary of changes
+  IF TG_OP = 'UPDATE' THEN
+    SELECT string_agg(key || ': ' || (v_old_json->key)::text || ' → ' || (v_new_json->key)::text, ', ')
+    INTO v_changes
+    FROM jsonb_object_keys(v_new_json) AS key
+    WHERE v_old_json->key IS DISTINCT FROM v_new_json->key
+    AND key NOT IN ('updated_at', 'created_at');
+    
+    -- Insert audit log
+    INSERT INTO public.client_audit_log (
+      client_id,
+      changed_by,
+      change_type,
+      table_name,
+      record_id,
+      old_values,
+      new_values,
+      changes_summary
+    ) VALUES (
+      NEW.id,
+      auth.uid(),
+      'updated',
+      TG_TABLE_NAME,
+      NEW.id,
+      v_old_json,
+      v_new_json,
+      v_changes
+    );
+  ELSIF TG_OP = 'INSERT' THEN
+    INSERT INTO public.client_audit_log (
+      client_id,
+      changed_by,
+      change_type,
+      table_name,
+      record_id,
+      old_values,
+      new_values,
+      changes_summary
+    ) VALUES (
+      NEW.id,
+      auth.uid(),
+      'created',
+      TG_TABLE_NAME,
+      NEW.id,
+      NULL,
+      v_new_json,
+      'Client created'
+    );
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger for clients table
+CREATE TRIGGER trigger_track_client_changes
+  AFTER INSERT OR UPDATE ON public.clients
+  FOR EACH ROW
+  EXECUTE FUNCTION public.track_client_changes();
+
+-- ================================================
 -- FUNCTION: Auto-generate AC Unit Code
 -- ================================================
 
