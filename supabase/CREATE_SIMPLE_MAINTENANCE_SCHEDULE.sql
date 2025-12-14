@@ -470,8 +470,11 @@ BEGIN
         -- Enable extension
         CREATE EXTENSION IF NOT EXISTS pg_cron;
         
-        -- Unschedule if exists
-        PERFORM cron.unschedule('generate-simple-maintenance-orders');
+        -- Unschedule if exists (check first to avoid error)
+        IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'generate-simple-maintenance-orders') THEN
+            PERFORM cron.unschedule('generate-simple-maintenance-orders');
+            RAISE NOTICE 'Unscheduled existing job: generate-simple-maintenance-orders';
+        END IF;
         
         -- Schedule: Daily at 6:00 AM
         PERFORM cron.schedule(

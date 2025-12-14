@@ -214,9 +214,11 @@ BEGIN
         -- Enable extension if not already enabled
         CREATE EXTENSION IF NOT EXISTS pg_cron;
         
-        -- Unschedule if exists
-        PERFORM cron.unschedule('unified-maintenance-generation')
-        WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'unified-maintenance-generation');
+        -- Unschedule if exists (check first to avoid error)
+        IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'unified-maintenance-generation') THEN
+            PERFORM cron.unschedule('unified-maintenance-generation');
+            RAISE NOTICE 'Unscheduled existing job: unified-maintenance-generation';
+        END IF;
         
         -- Schedule unified generation: Daily at 6:00 AM UTC
         PERFORM cron.schedule(
