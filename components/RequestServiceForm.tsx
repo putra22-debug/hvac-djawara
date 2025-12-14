@@ -164,7 +164,6 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
           value={formData.service_type}
           onChange={(e) => {
             handleChange(e);
-            // Reset contract request if user changes away from maintenance
             if (e.target.value !== 'maintenance') {
               setIsContractRequest(false);
             }
@@ -192,7 +191,6 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
         />
       </div>
 
-      {/* Contract Option - Only show if service_type is maintenance */}
       {formData.service_type === 'maintenance' && (
         <div className="border-t pt-4">
           <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg">
@@ -213,61 +211,61 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
             </div>
           </div>
 
-        {isContractRequest && (
-          <div className="mt-4 space-y-4 p-4 border rounded-lg bg-gray-50">
-            <p className="text-sm font-medium text-gray-700">Detail Kontrak Maintenance:</p>
-            
-            <div className="grid md:grid-cols-2 gap-4">
+          {isContractRequest && (
+            <div className="mt-4 space-y-4 p-4 border rounded-lg bg-gray-50">
+              <p className="text-sm font-medium text-gray-700">Detail Kontrak Maintenance:</p>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="unit_count">Jumlah Unit AC *</Label>
+                  <Input
+                    id="unit_count"
+                    name="unit_count"
+                    type="number"
+                    min="1"
+                    value={formData.unit_count}
+                    onChange={handleChange}
+                    placeholder="Contoh: 5"
+                    required={isContractRequest}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Berapa total unit AC yang ingin di-maintenance?</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="location_count">Jumlah Lokasi</Label>
+                  <Input
+                    id="location_count"
+                    name="location_count"
+                    type="number"
+                    min="1"
+                    value={formData.location_count}
+                    onChange={handleChange}
+                    placeholder="1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Berapa cabang/lokasi?</p>
+                </div>
+              </div>
+
               <div>
-                <Label htmlFor="unit_count">Jumlah Unit AC *</Label>
-                <Input
-                  id="unit_count"
-                  name="unit_count"
-                  type="number"
-                  min="1"
-                  value={formData.unit_count}
+                <Label htmlFor="preferred_frequency">Frekuensi Perawatan *</Label>
+                <select
+                  id="preferred_frequency"
+                  name="preferred_frequency"
+                  value={formData.preferred_frequency}
                   onChange={handleChange}
-                  placeholder="Contoh: 5"
+                  className="w-full p-2 border rounded-md"
                   required={isContractRequest}
-                />
-                <p className="text-xs text-gray-500 mt-1">Berapa total unit AC yang ingin di-maintenance?</p>
-              </div>
-
-              <div>
-                <Label htmlFor="location_count">Jumlah Lokasi</Label>
-                <Input
-                  id="location_count"
-                  name="location_count"
-                  type="number"
-                  min="1"
-                  value={formData.location_count}
-                  onChange={handleChange}
-                  placeholder="1"
-                />
-                <p className="text-xs text-gray-500 mt-1">Berapa cabang/lokasi?</p>
+                >
+                  <option value="monthly">Bulanan - Setiap bulan (Rekomendasi untuk ATM/Server)</option>
+                  <option value="quarterly">3 Bulan Sekali (Hemat & efektif)</option>
+                  <option value="semi_annual">6 Bulan Sekali (Standar)</option>
+                  <option value="custom">Sesuai Kebutuhan</option>
+                </select>
               </div>
             </div>
-
-            <div>
-              <Label htmlFor="preferred_frequency">Frekuensi Perawatan *</Label>
-              <select
-                id="preferred_frequency"
-                name="preferred_frequency"
-                value={formData.preferred_frequency}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required={isContractRequest}
-              >
-                <option value="monthly">Bulanan - Setiap bulan (Rekomendasi untuk ATM/Server)</option>
-                <option value="quarterly">3 Bulan Sekali (Hemat & efektif)</option>
-                <option value="semi_annual">6 Bulan Sekali (Standar)</option>
-                <option value="custom">Sesuai Kebutuhan</option>
-              </select>
-            </div>
-          </div>
+          )}
         </div>
       )}
-      </div>
 
       {!isContractRequest && (
         <div className="grid md:grid-cols-2 gap-4">
