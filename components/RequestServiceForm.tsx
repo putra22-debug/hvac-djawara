@@ -60,7 +60,9 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
           setTimeout(() => setSuccess(false), 5000);
         }
       } else {
-        alert('Gagal mengirim request. Silakan coba lagi.');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API Error Response:', errorData);
+        alert(`Gagal: ${errorData.details || errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error submitting request:', error);
