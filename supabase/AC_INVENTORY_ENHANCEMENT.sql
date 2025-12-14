@@ -231,8 +231,10 @@ BEGIN
   FROM public.ac_units
   WHERE property_id = p_property_id AND barcode_number IS NOT NULL;
   
-  -- Generate barcode: CLT-PRO-0001
-  barcode := client_code || '-' || property_code || '-' || LPAD(sequence_num::TEXT, 4, '0');
+  -- Generate barcode: CLT-PRO-PROPID-0001 (with property short ID for uniqueness)
+  barcode := client_code || '-' || property_code || '-' || 
+             UPPER(LEFT(REPLACE(p_property_id::TEXT, '-', ''), 6)) || '-' || 
+             LPAD(sequence_num::TEXT, 3, '0');
   
   RETURN barcode;
 END;
@@ -240,7 +242,9 @@ $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION public.generate_ac_barcode IS 
 'Generate unique barcode untuk AC unit.
-Format: CLT-PRO-0001 (Client-Property-Sequence)';
+Format: CLT-PRO-PROPID-001 (Client-Property-PropertyID-Sequence)
+Example: BAN-KAN-A1B2C3-001
+PropertyID ensures uniqueness across properties with similar names.';
 
 -- ================================================
 -- PART 5: View for AC Inventory with History
