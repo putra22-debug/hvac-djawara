@@ -26,7 +26,6 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
     preferred_date: '',
     preferred_time: 'pagi',
     notes: '',
-    // Contract fields
     unit_count: '',
     location_count: '1',
     preferred_frequency: 'monthly',
@@ -37,7 +36,6 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
     setLoading(true);
 
     try {
-      // If it's a contract request, submit to contract_requests table
       const endpoint = isContractRequest ? '/api/contract-requests' : '/api/service-requests';
       
       const payload = isContractRequest 
@@ -77,7 +75,6 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
         });
         setIsContractRequest(false);
         
-        // Call onSuccess callback if provided
         if (onSuccess) {
           setTimeout(() => {
             onSuccess();
@@ -185,6 +182,10 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
           onChange={handleChange}
           placeholder="Jl. Contoh No. 123, Jakarta Selatan"
           rows={2}
+          required
+        />
+      </div>
+
       {/* Contract Option */}
       <div className="border-t pt-4">
         <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg">
@@ -205,7 +206,6 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
           </div>
         </div>
 
-        {/* Show contract fields when checkbox is checked */}
         {isContractRequest && (
           <div className="mt-4 space-y-4 p-4 border rounded-lg bg-gray-50">
             <p className="text-sm font-medium text-gray-700">Detail Kontrak Maintenance:</p>
@@ -219,7 +219,6 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
                   type="number"
                   min="1"
                   value={formData.unit_count}
-      )}
                   onChange={handleChange}
                   placeholder="Contoh: 5"
                   required={isContractRequest}
@@ -240,9 +239,7 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
                 />
                 <p className="text-xs text-gray-500 mt-1">Berapa cabang/lokasi?</p>
               </div>
-            isContractRequest ? (
-          '💼 Ajukan Kontrak Maintenance'
-        ) : </div>
+            </div>
 
             <div>
               <Label htmlFor="preferred_frequency">Frekuensi Perawatan *</Label>
@@ -265,40 +262,37 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
       </div>
 
       {!isContractRequest && (
-            required
-        />
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="preferred_date">Tanggal Kunjungan yang Diinginkan *</Label>
-          <Input
-            id="preferred_date"
-            name="preferred_date"
-            type="date"
-            value={formData.preferred_date}
-            onChange={handleChange}
-            min={new Date().toISOString().split('T')[0]}
-            required
-          />
-          <p className="text-xs text-gray-500 mt-1">Pilih tanggal untuk kunjungan teknisi</p>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="preferred_date">Tanggal Kunjungan yang Diinginkan *</Label>
+            <Input
+              id="preferred_date"
+              name="preferred_date"
+              type="date"
+              value={formData.preferred_date}
+              onChange={handleChange}
+              min={new Date().toISOString().split('T')[0]}
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">Pilih tanggal untuk kunjungan teknisi</p>
+          </div>
+          <div>
+            <Label htmlFor="preferred_time">Waktu yang Diinginkan *</Label>
+            <select
+              id="preferred_time"
+              name="preferred_time"
+              value={formData.preferred_time}
+              onChange={handleChange}
+              className="w-full p-2 border rounded-md"
+              required
+            >
+              <option value="pagi">Pagi (09:00 - 12:00)</option>
+              <option value="siang">Siang (12:00 - 15:00)</option>
+              <option value="sore">Sore (15:00 - 17:00)</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <Label htmlFor="preferred_time">Waktu yang Diinginkan *</Label>
-          <select
-            id="preferred_time"
-            name="preferred_time"
-            value={formData.preferred_time}
-            onChange={handleChange}
-            className="w-full p-2 border rounded-md"
-            required
-          >
-            <option value="pagi">Pagi (09:00 - 12:00)</option>
-            <option value="siang">Siang (12:00 - 15:00)</option>
-            <option value="sore">Sore (15:00 - 17:00)</option>
-          </select>
-        </div>
-      </div>
+      )}
 
       {variant === 'default' && (
         <div>
@@ -320,6 +314,8 @@ export function RequestServiceForm({ variant = 'default', onSuccess }: RequestSe
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Mengirim...
           </>
+        ) : isContractRequest ? (
+          '💼 Ajukan Kontrak Maintenance'
         ) : (
           'Kirim Request'
         )}
