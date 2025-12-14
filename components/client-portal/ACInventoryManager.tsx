@@ -21,7 +21,9 @@ import {
   Wrench,
   Barcode,
   Image as ImageIcon,
-  RefreshCw
+  RefreshCw,
+  Upload,
+  X
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -80,14 +82,43 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
     installation_date: '',
     warranty_until: '',
     last_service_date: '',
-    next_service_due: '',
     condition_status: 'good',
     notes: ''
   })
 
+  const [unitPhotoFile, setUnitPhotoFile] = useState<File | null>(null)
+  const [modelPhotoFile, setModelPhotoFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+
   useEffect(() => {
     fetchData()
   }, [clientId])
+
+  async function uploadPhoto(file: File, folder: 'unit' | 'model'): Promise<string | null> {
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+      const filePath = `${folder}/${fileName}`
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('ac-photos')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('ac-photos')
+        .getPublicUrl(filePath)
+
+      return publicUrl
+    } catch (err) {
+      console.error('Upload error:', err)
+      throw err
+    }
+  }
 
   async function fetchData() {
     try {
@@ -129,16 +160,30 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setUploading(true)
 
     try {
+      // Upload photos if selected
+      let unitPhotoUrl = formData.unit_photo_url
+      let modelPhotoUrl = formData.model_photo_url
+
+      if (unitPhotoFile) {
+        unitPhotoUrl = await uploadPhoto(unitPhotoFile, 'unit') || ''
+      }
+
+      if (modelPhotoFile) {
+        modelPhotoUrl = await uploadPhoto(modelPhotoFile, 'model') || ''
+      }
+
       const dataToSave = {
         ...formData,
         client_id: clientId,
         capacity_btu: formData.capacity_pk * 9000, // Auto-calculate BTU
+        unit_photo_url: unitPhotoUrl,
+        model_photo_url: modelPhotoUrl,
         installation_date: formData.installation_date || null,
         warranty_until: formData.warranty_until || null,
         last_service_date: formData.last_service_date || null,
-        next_service_due: formData.next_service_due || null,
       }
 
       if (editingId) {
@@ -171,6 +216,8 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
     } catch (err) {
       console.error('Error saving AC unit:', err)
       setError(err instanceof Error ? err.message : 'Failed to save AC unit')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -206,7 +253,6 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
       installation_date: unit.installation_date || '',
       warranty_until: unit.warranty_until || '',
       last_service_date: unit.last_service_date || '',
-      next_service_due: unit.next_service_due || '',
       condition_status: unit.condition_status,
       notes: unit.notes || ''
     })
@@ -229,10 +275,11 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
       installation_date: '',
       warranty_until: '',
       last_service_date: '',
-      next_service_due: '',
       condition_status: 'good',
       notes: ''
     })
+    setUnitPhotoFile(null)
+    setModelPhotoFile(null)
     setEditingId(null)
     setShowForm(false)
   }
@@ -484,46 +531,94 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
                       value={formData.last_service_date}
                       onChange={(e) => setFormData({ ...formData, last_service_date: e.target.value })}
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Next Service Due
-                    </label>
-                    <Input
-                      type="date"
-                      value={formData.next_service_due}
-                      onChange={(e) => setFormData({ ...formData, next_service_due: e.target.value })}
-                    />
+                    <p className="text-xs text-gray-500 mt-1">Next service will be auto-scheduled based on maintenance contract</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <ImageIcon className="w-4 h-4 inline mr-1" />
-                      Unit Photo URL
+                      <Upload className="w-4 h-4 inline mr-1" />
+                      Unit Photo
                     </label>
-                    <Input
-                      value={formData.unit_photo_url}
-                      onChange={(e) => setFormData({ ...formData, unit_photo_url: e.target.value })}
-                      placeholder="URL of AC unit photo"
-                      type="url"
-                    />
+                    {!unitPhotoFile && !formData.unit_photo_url ? (
+                      <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          onChange={(e) => setUnitPhotoFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                          id="unit-photo"
+                        />
+                        <label htmlFor="unit-photo" className="cursor-pointer">
+                          <ImageIcon className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600">Click to upload unit photo</p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP (max 5MB)</p>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="border rounded-md p-2 flex items-center gap-2 bg-gray-50">
+                          <ImageIcon className="w-4 h-4 text-green-600" />
+                          <span className="text-sm text-gray-700 flex-1 truncate">
+                            {unitPhotoFile?.name || 'Photo uploaded'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUnitPhotoFile(null)
+                              setFormData({ ...formData, unit_photo_url: '' })
+                            }}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">Photo of the actual AC unit installed</p>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <ImageIcon className="w-4 h-4 inline mr-1" />
-                      Model Photo URL
+                      <Upload className="w-4 h-4 inline mr-1" />
+                      Model Photo
                     </label>
-                    <Input
-                      value={formData.model_photo_url}
-                      onChange={(e) => setFormData({ ...formData, model_photo_url: e.target.value })}
-                      placeholder="URL of model/nameplate photo"
-                      type="url"
-                    />
+                    {!modelPhotoFile && !formData.model_photo_url ? (
+                      <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          onChange={(e) => setModelPhotoFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                          id="model-photo"
+                        />
+                        <label htmlFor="model-photo" className="cursor-pointer">
+                          <ImageIcon className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600">Click to upload model photo</p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP (max 5MB)</p>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="border rounded-md p-2 flex items-center gap-2 bg-gray-50">
+                          <ImageIcon className="w-4 h-4 text-green-600" />
+                          <span className="text-sm text-gray-700 flex-1 truncate">
+                            {modelPhotoFile?.name || 'Photo uploaded'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModelPhotoFile(null)
+                              setFormData({ ...formData, model_photo_url: '' })
+                            }}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">Photo of model nameplate/specifications</p>
                   </div>
                 </div>
@@ -542,10 +637,17 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                  <Button type="submit" className="flex-1">
-                    {editingId ? 'Update AC Unit' : 'Add AC Unit'}
+                  <Button type="submit" className="flex-1" disabled={uploading}>
+                    {uploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      editingId ? 'Update AC Unit' : 'Add AC Unit'
+                    )}
                   </Button>
-                  <Button type="button" variant="outline" onClick={resetForm}>
+                  <Button type="button" variant="outline" onClick={resetForm} disabled={uploading}>
                     Cancel
                   </Button>
                 </div>
