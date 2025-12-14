@@ -222,7 +222,7 @@ BEGIN
         PERFORM cron.schedule(
             'unified-maintenance-generation',
             '0 6 * * *',
-            $$SELECT * FROM generate_all_maintenance_orders()$$
+            $cron$SELECT * FROM generate_all_maintenance_orders()$cron$
         );
         
         RAISE NOTICE '✅ Cron job scheduled: unified-maintenance-generation (daily at 6 AM UTC)';

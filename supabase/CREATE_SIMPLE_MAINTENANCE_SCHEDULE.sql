@@ -477,7 +477,7 @@ BEGIN
         PERFORM cron.schedule(
             'generate-simple-maintenance-orders',
             '0 6 * * *',
-            $$SELECT * FROM batch_generate_simple_maintenance_orders()$$
+            $cron$SELECT * FROM batch_generate_simple_maintenance_orders()$cron$
         );
         
         RAISE NOTICE '✅ Cron job scheduled: generate-simple-maintenance-orders (daily at 6 AM)';
