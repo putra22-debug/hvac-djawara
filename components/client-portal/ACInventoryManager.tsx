@@ -41,8 +41,8 @@ interface ACUnit {
   capacity_btu: number
   unit_photo_url?: string
   model_photo_url?: string
-  installation_date?: string
-  warranty_until?: string
+  install_date?: string
+  warranty_expires_at?: string
   last_service_date?: string
   next_service_due?: string
   condition_status: string
@@ -79,8 +79,8 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
     capacity_btu: 9000,
     unit_photo_url: '',
     model_photo_url: '',
-    installation_date: '',
-    warranty_until: '',
+    install_date: '',
+    warranty_expires_at: '',
     last_service_date: '',
     condition_status: 'good',
     notes: ''
@@ -181,8 +181,8 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
         capacity_btu: formData.capacity_pk * 9000, // Auto-calculate BTU
         unit_photo_url: unitPhotoUrl,
         model_photo_url: modelPhotoUrl,
-        installation_date: formData.installation_date || null,
-        warranty_until: formData.warranty_until || null,
+        install_date: formData.install_date || null,
+        warranty_expires_at: formData.warranty_expires_at || null,
         last_service_date: formData.last_service_date || null,
       }
 
@@ -250,8 +250,8 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
       capacity_btu: unit.capacity_btu,
       unit_photo_url: unit.unit_photo_url || '',
       model_photo_url: unit.model_photo_url || '',
-      installation_date: unit.installation_date || '',
-      warranty_until: unit.warranty_until || '',
+      install_date: unit.install_date || '',
+      warranty_expires_at: unit.warranty_expires_at || '',
       last_service_date: unit.last_service_date || '',
       condition_status: unit.condition_status,
       notes: unit.notes || ''
@@ -506,8 +506,8 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
                     </label>
                     <Input
                       type="date"
-                      value={formData.installation_date}
-                      onChange={(e) => setFormData({ ...formData, installation_date: e.target.value })}
+                      value={formData.install_date}
+                      onChange={(e) => setFormData({ ...formData, install_date: e.target.value })}
                     />
                   </div>
 
@@ -517,8 +517,8 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
                     </label>
                     <Input
                       type="date"
-                      value={formData.warranty_until}
-                      onChange={(e) => setFormData({ ...formData, warranty_until: e.target.value })}
+                      value={formData.warranty_expires_at}
+                      onChange={(e) => setFormData({ ...formData, warranty_expires_at: e.target.value })}
                     />
                   </div>
 
