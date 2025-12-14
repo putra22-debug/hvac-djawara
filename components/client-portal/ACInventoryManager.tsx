@@ -18,7 +18,10 @@ import {
   Loader2,
   AlertCircle,
   Calendar,
-  Wrench
+  Wrench,
+  Barcode,
+  Image as ImageIcon,
+  RefreshCw
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -27,11 +30,15 @@ interface ACUnit {
   unit_code: string
   property_id: string
   property_name?: string
+  room_name?: string
+  barcode_number?: string
   brand: string
   model: string
   ac_type: string
   capacity_pk: number
   capacity_btu: number
+  unit_photo_url?: string
+  model_photo_url?: string
   installation_date?: string
   warranty_until?: string
   last_service_date?: string
@@ -61,11 +68,15 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
 
   const [formData, setFormData] = useState({
     property_id: '',
+    room_name: '',
+    barcode_number: '',
     brand: '',
     model: '',
     ac_type: 'split_wall',
     capacity_pk: 1,
     capacity_btu: 9000,
+    unit_photo_url: '',
+    model_photo_url: '',
     installation_date: '',
     warranty_until: '',
     last_service_date: '',
@@ -183,11 +194,15 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
   function startEdit(unit: ACUnit) {
     setFormData({
       property_id: unit.property_id,
+      room_name: unit.room_name || '',
+      barcode_number: unit.barcode_number || '',
       brand: unit.brand,
       model: unit.model,
       ac_type: unit.ac_type,
       capacity_pk: unit.capacity_pk,
       capacity_btu: unit.capacity_btu,
+      unit_photo_url: unit.unit_photo_url || '',
+      model_photo_url: unit.model_photo_url || '',
       installation_date: unit.installation_date || '',
       warranty_until: unit.warranty_until || '',
       last_service_date: unit.last_service_date || '',
@@ -202,11 +217,15 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
   function resetForm() {
     setFormData({
       property_id: '',
+      room_name: '',
+      barcode_number: '',
       brand: '',
       model: '',
       ac_type: 'split_wall',
       capacity_pk: 1,
       capacity_btu: 9000,
+      unit_photo_url: '',
+      model_photo_url: '',
       installation_date: '',
       warranty_until: '',
       last_service_date: '',
@@ -299,6 +318,17 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Room Name
+                    </label>
+                    <Input
+                      value={formData.room_name}
+                      onChange={(e) => setFormData({ ...formData, room_name: e.target.value })}
+                      placeholder="e.g., Meeting Room 1, Lobby, Manager Office"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       AC Type *
                     </label>
                     <select
@@ -339,6 +369,50 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
                       placeholder="e.g., CS-CU12VKP"
                       required
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Barcode Number
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={formData.barcode_number}
+                        onChange={(e) => setFormData({ ...formData, barcode_number: e.target.value })}
+                        placeholder="Auto-generated or manual"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          if (!formData.property_id) {
+                            alert('Please select a property first')
+                            return
+                          }
+                          const { data: property } = await supabase
+                            .from('client_properties')
+                            .select('client_id')
+                            .eq('id', formData.property_id)
+                            .single()
+                          
+                          if (property) {
+                            const { data: barcode } = await supabase
+                              .rpc('generate_ac_barcode', {
+                                p_client_id: property.client_id,
+                                p_property_id: formData.property_id
+                              })
+                            if (barcode) {
+                              setFormData({ ...formData, barcode_number: barcode })
+                            }
+                          }
+                        }}
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Format: CLT-PRO-0001</p>
                   </div>
 
                   <div>
@@ -424,6 +498,36 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <ImageIcon className="w-4 h-4 inline mr-1" />
+                      Unit Photo URL
+                    </label>
+                    <Input
+                      value={formData.unit_photo_url}
+                      onChange={(e) => setFormData({ ...formData, unit_photo_url: e.target.value })}
+                      placeholder="URL of AC unit photo"
+                      type="url"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Photo of the actual AC unit installed</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <ImageIcon className="w-4 h-4 inline mr-1" />
+                      Model Photo URL
+                    </label>
+                    <Input
+                      value={formData.model_photo_url}
+                      onChange={(e) => setFormData({ ...formData, model_photo_url: e.target.value })}
+                      placeholder="URL of model/nameplate photo"
+                      type="url"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Photo of model nameplate/specifications</p>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Notes
@@ -461,13 +565,39 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
             {units.map((unit) => (
               <Card key={unit.id}>
                 <CardContent className="py-4">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Photos */}
+                    {(unit.unit_photo_url || unit.model_photo_url) && (
+                      <div className="flex gap-2">
+                        {unit.unit_photo_url && (
+                          <img
+                            src={unit.unit_photo_url}
+                            alt="Unit"
+                            className="w-16 h-16 object-cover rounded border"
+                          />
+                        )}
+                        {unit.model_photo_url && (
+                          <img
+                            src={unit.model_photo_url}
+                            alt="Model"
+                            className="w-16 h-16 object-cover rounded border"
+                          />
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <Snowflake className="w-4 h-4 text-blue-500" />
                         <h4 className="font-semibold text-gray-900">
                           {unit.unit_code}
                         </h4>
+                        {unit.barcode_number && (
+                          <div className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded text-xs">
+                            <Barcode className="w-3 h-3" />
+                            {unit.barcode_number}
+                          </div>
+                        )}
                         <span className={`px-2 py-0.5 text-xs rounded ${conditionColors[unit.condition_status as keyof typeof conditionColors]}`}>
                           {unit.condition_status}
                         </span>
@@ -477,6 +607,9 @@ export function ACInventoryManager({ clientId }: ACInventoryManagerProps) {
                         <div>
                           <p className="text-gray-500">Property</p>
                           <p className="font-medium">{unit.property_name}</p>
+                          {unit.room_name && (
+                            <p className="text-xs text-gray-400">{unit.room_name}</p>
+                          )}
                         </div>
                         <div>
                           <p className="text-gray-500">Brand & Model</p>
