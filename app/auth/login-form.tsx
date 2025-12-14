@@ -58,8 +58,12 @@ export function LoginForm() {
       }
 
       if (authData?.user) {
+        console.log('✓ Login successful for user:', authData.user.email)
         router.push('/dashboard')
         router.refresh()
+      } else {
+        console.warn('Login succeeded but no user returned:', authData)
+        setError('Login berhasil tapi data user tidak ditemukan')
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error'
