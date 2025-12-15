@@ -37,7 +37,7 @@ USING (bucket_id = 'client-documents');
 CREATE POLICY "Authenticated users can upload documents"
 ON storage.objects FOR INSERT
 TO authenticated
--- WITH CHECK (bucket_id = 'client-documents');
+WITH CHECK (bucket_id = 'client-documents');
 
 CREATE POLICY "Users can update own documents"
 ON storage.objects FOR UPDATE
