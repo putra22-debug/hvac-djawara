@@ -106,17 +106,12 @@ export default function TechnicianVerifyPage() {
         }, 2000);
       }
     } catch (error: any) {
-      console.error("Verification error:", eAkun Berhasil Dibuat!</CardTitle>
-            <CardDescription>
-              Akun teknisi Anda telah diverifikasi dan siap digunakan.
-              <br />
-              Anda akan diarahkan ke halaman login...
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+      console.error("Create password error:", error);
+      toast.error(error.message || "Gagal membuat akun");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (step === "password") {
     return (
