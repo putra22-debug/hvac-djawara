@@ -29,21 +29,25 @@ VALUES (
 ON CONFLICT (id) DO NOTHING;
 
 -- RLS Policies for client-documents bucket
+DROP POLICY IF EXISTS "Authenticated users can view documents" ON storage.objects;
 CREATE POLICY "Authenticated users can view documents"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (bucket_id = 'client-documents');
 
+DROP POLICY IF EXISTS "Authenticated users can upload documents" ON storage.objects;
 CREATE POLICY "Authenticated users can upload documents"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (bucket_id = 'client-documents');
 
+DROP POLICY IF EXISTS "Users can update own documents" ON storage.objects;
 CREATE POLICY "Users can update own documents"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (bucket_id = 'client-documents' AND owner = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete own documents" ON storage.objects;
 CREATE POLICY "Users can delete own documents"
 ON storage.objects FOR DELETE
 TO authenticated
@@ -70,21 +74,25 @@ VALUES (
 ON CONFLICT (id) DO NOTHING;
 
 -- RLS Policies for ac-photos bucket
+DROP POLICY IF EXISTS "Authenticated users can view AC photos" ON storage.objects;
 CREATE POLICY "Authenticated users can view AC photos"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (bucket_id = 'ac-photos');
 
+DROP POLICY IF EXISTS "Authenticated users can upload AC photos" ON storage.objects;
 CREATE POLICY "Authenticated users can upload AC photos"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (bucket_id = 'ac-photos');
 
+DROP POLICY IF EXISTS "Users can update AC photos" ON storage.objects;
 CREATE POLICY "Users can update AC photos"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (bucket_id = 'ac-photos' AND owner = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete AC photos" ON storage.objects;
 CREATE POLICY "Users can delete AC photos"
 ON storage.objects FOR DELETE
 TO authenticated
@@ -113,6 +121,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- RLS Policies for work-photos bucket
 -- Technicians can upload work photos
+DROP POLICY IF EXISTS "Technicians can upload work photos" ON storage.objects;
 CREATE POLICY "Technicians can upload work photos"
 ON storage.objects FOR INSERT
 TO authenticated
@@ -124,6 +133,7 @@ WITH CHECK (
 );
 
 -- Technicians can view work photos from their assignments
+DROP POLICY IF EXISTS "Technicians can view work photos" ON storage.objects;
 CREATE POLICY "Technicians can view work photos"
 ON storage.objects FOR SELECT
 TO authenticated
@@ -144,6 +154,7 @@ USING (
 );
 
 -- Technicians can delete their own recent photos
+DROP POLICY IF EXISTS "Technicians can delete recent work photos" ON storage.objects;
 CREATE POLICY "Technicians can delete recent work photos"
 ON storage.objects FOR DELETE
 TO authenticated
@@ -176,6 +187,7 @@ VALUES (
 ON CONFLICT (id) DO NOTHING;
 
 -- RLS Policies for technician-avatars bucket
+DROP POLICY IF EXISTS "Technicians can upload own avatar" ON storage.objects;
 CREATE POLICY "Technicians can upload own avatar"
 ON storage.objects FOR INSERT
 TO authenticated
@@ -186,6 +198,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Technicians can update own avatar" ON storage.objects;
 CREATE POLICY "Technicians can update own avatar"
 ON storage.objects FOR UPDATE
 TO authenticated
@@ -196,6 +209,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Public can view technician avatars" ON storage.objects;
 CREATE POLICY "Public can view technician avatars"
 ON storage.objects FOR SELECT
 TO public

@@ -29,8 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserPlus, Mail, Phone, CheckCircle, XCircle, Copy } from "lucide-react";
+import { UserPlus, Mail, Phone, CheckCircle, XCircle, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Technician {
   id: string;
@@ -67,6 +68,7 @@ export default function TeamManagement() {
     employee_id: "",
     role: "technician",
   });
+  const [autoGenerateId, setAutoGenerateId] = useState(true);
 
   useEffect(() => {
     fetchTechnicians();
@@ -90,6 +92,46 @@ export default function TeamManagement() {
     }
   };
 
+  const generateEmployeeId = async (role: string) => {
+    const supabase = createClient();
+    
+    // Role code mapping
+    const roleCodeMap: Record<string, string> = {
+      admin_finance: "ADM",
+      admin_operasional: "OPS",
+      supervisor: "SPV",
+      senior_technician: "SEN",
+      technician: "TEC",
+      helper: "HLP",
+      intern: "INT",
+    };
+
+    const roleCode = roleCodeMap[role] || "TEC";
+    const year = new Date().getFullYear().toString().slice(-2); // 25 for 2025
+    const prefix = `DTG.${roleCode}.${year}`;
+
+    // Get last employee with this prefix
+    const { data: lastEmployee } = await supabase
+      .from("technicians")
+      .select("employee_id")
+      .like("employee_id", `${prefix}.%`)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let counter = 1;
+    if (lastEmployee?.employee_id) {
+      // Extract counter from last ID (e.g., DTG.TEC.25.001 -> 001)
+      const parts = lastEmployee.employee_id.split(".");
+      if (parts.length === 4) {
+        counter = parseInt(parts[3]) + 1;
+      }
+    }
+
+    // Format: DTG.TEC.25.001
+    return `${prefix}.${counter.toString().padStart(3, "0")}`;
+  };
+
   const handleAddTechnician = async () => {
     try {
       const supabase = createClient();
@@ -106,11 +148,18 @@ export default function TeamManagement() {
 
       if (!userRole) throw new Error("No tenant found");
 
+      // Generate employee ID if auto-generate is enabled
+      let employeeId = formData.employee_id;
+      if (autoGenerateId) {
+        employeeId = await generateEmployeeId(formData.role);
+      }
+
       // Insert technician
       const { data: newTech, error: insertError } = await supabase
         .from("technicians")
         .insert({
           ...formData,
+          employee_id: employeeId,
           tenant_id: userRole.tenant_id,
           created_by: user.id,
         })
@@ -384,14 +433,42 @@ export default function TeamManagement() {
               />
             </div>
             <div>
-              <Label>Employee ID</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Employee ID</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="auto-generate-id"
+                    checked={autoGenerateId}
+                    onCheckedChange={(checked) => {
+                      setAutoGenerateId(checked as boolean);
+                      if (checked) {
+                        setFormData({ ...formData, employee_id: "" });
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor="auto-generate-id"
+                    className="text-sm text-muted-foreground cursor-pointer"
+                  >
+                    Auto-generate
+                  </label>
+                </div>
+              </div>
               <Input
                 value={formData.employee_id}
                 onChange={(e) =>
                   setFormData({ ...formData, employee_id: e.target.value })
                 }
-                placeholder="EMP001"
+                placeholder={autoGenerateId ? "Will be auto-generated (e.g., DTG.TEC.25.001)" : "Enter manually (e.g., EMP001)"}
+                disabled={autoGenerateId}
+                className={autoGenerateId ? "bg-muted" : ""}
               />
+              {autoGenerateId && (
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <RefreshCw className="h-3 w-3" />
+                  Format: DTG.[ROLE].[YY].[COUNTER]
+                </p>
+              )}
             </div>
             <div>
               <Label>Role</Label>
