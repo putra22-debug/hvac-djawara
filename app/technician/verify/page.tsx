@@ -14,9 +14,12 @@ export default function TechnicianVerifyPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [step, setStep] = useState<"verify" | "password">("verify");
   const [formData, setFormData] = useState({
     email: "",
     token: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const handleVerify = async (e: React.FormEvent) => {
@@ -39,25 +42,40 @@ export default function TechnicianVerifyPage() {
       }
 
       // Token verified successfully
-      setVerified(true);
-      toast.success("Verifikasi berhasil!");
+      toast.success("Token valid! Silakan buat password.");
+      setStep("password");
+    } catch (error: any) {
+      console.error("Verification error:", error);
+      toast.error(error.message || "Verifikasi gagal");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Create password for the technician
-      const password = prompt(
-        "Verifikasi berhasil! Silakan buat password untuk login:"
-      );
+  const handleCreatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Password tidak cocok");
+      return;
+    }
 
-      if (!password || password.length < 6) {
-        toast.error("Password minimal 6 karakter");
-        setLoading(false);
-        return;
-      }
+    if (formData.password.length < 6) {
+      toast.error("Password minimal 6 karakter");
+      return;
+    }
 
-      // Sign up the technician
+    setLoading(true);
+
+    try {
+      const supabase = createClient();
+
+      // Sign up the technician with email confirmation disabled
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
-        password: password,
+        password: formData.password,
         options: {
+          emailRedirectTo: `${window.location.origin}/technician/dashboard`,
           data: {
             role: "technician",
             is_technician: true,
@@ -79,6 +97,7 @@ export default function TechnicianVerifyPage() {
 
         if (updateError) throw updateError;
 
+        setVerified(true);
         toast.success("Akun berhasil dibuat! Silakan login.");
         
         // Redirect to technician login
@@ -87,15 +106,19 @@ export default function TechnicianVerifyPage() {
         }, 2000);
       }
     } catch (error: any) {
-      console.error("Verification error:", error);
-      toast.error(error.message || "Verifikasi gagal");
-      setVerified(false);
-    } finally {
-      setLoading(false);
-    }
-  };
+      console.error("Verification error:", eAkun Berhasil Dibuat!</CardTitle>
+            <CardDescription>
+              Akun teknisi Anda telah diverifikasi dan siap digunakan.
+              <br />
+              Anda akan diarahkan ke halaman login...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
-  if (verified) {
+  if (step === "password") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
         <Card className="w-full max-w-md">
@@ -103,13 +126,57 @@ export default function TechnicianVerifyPage() {
             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
-            <CardTitle className="text-2xl">Verifikasi Berhasil!</CardTitle>
+            <CardTitle className="text-2xl">Buat Password</CardTitle>
             <CardDescription>
-              Akun teknisi Anda telah diverifikasi dan dibuat.
-              <br />
-              Anda akan diarahkan ke halaman login...
+              Token terverifikasi! Silakan buat password untuk login
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreatePassword} className="space-y-4">
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Minimal 6 karakter"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  required
+                  disabled={loading}
+                  minLength={6}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="confirmPassword">Konfirmasi Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Ketik ulang password"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData({ ...formData, confirmPassword: e.target.value })
+                  }
+                  required
+                  disabled={loading}
+                  minLength={6}
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Membuat Akun...
+                  </>
+                ) : (
+                  "Buat Akun & Login"
+                )}
+              </Button>
+            </form>
+          </CardContent>
         </Card>
       </div>
     );
@@ -155,6 +222,22 @@ export default function TechnicianVerifyPage() {
                   setFormData({ ...formData, token: e.target.value })
                 }
                 required
+                disabled={loading}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Token terdiri dari 32 karakter
+              </p>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Memverifikasi...
+                </>
+              ) : (
+                "Verifikasi Toke
                 disabled={loading}
                 className="font-mono"
               />
