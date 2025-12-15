@@ -72,7 +72,7 @@ CREATE POLICY "Admins can view quotations"
       SELECT 1 FROM user_tenant_roles ur
       WHERE ur.user_id = auth.uid()
       AND ur.tenant_id = quotations.tenant_id
-      AND ur.role IN ('admin', 'owner', 'coordinator')
+      AND ur.role IN ('owner', 'admin_finance', 'admin_logistic', 'tech_head', 'sales_partner')
     )
   );
 
@@ -84,7 +84,7 @@ CREATE POLICY "Admins can create quotations"
       SELECT 1 FROM user_tenant_roles ur
       WHERE ur.user_id = auth.uid()
       AND ur.tenant_id = quotations.tenant_id
-      AND ur.role IN ('admin', 'owner', 'coordinator')
+      AND ur.role IN ('owner', 'admin_finance', 'admin_logistic', 'tech_head', 'sales_partner')
     )
   );
 
@@ -96,7 +96,7 @@ CREATE POLICY "Admins can update quotations"
       SELECT 1 FROM user_tenant_roles ur
       WHERE ur.user_id = auth.uid()
       AND ur.tenant_id = quotations.tenant_id
-      AND ur.role IN ('admin', 'owner', 'coordinator')
+      AND ur.role IN ('owner', 'admin_finance', 'admin_logistic', 'tech_head', 'sales_partner')
     )
   );
 
@@ -108,7 +108,7 @@ CREATE POLICY "Admins can delete quotations"
       SELECT 1 FROM user_tenant_roles ur
       WHERE ur.user_id = auth.uid()
       AND ur.tenant_id = quotations.tenant_id
-      AND ur.role IN ('admin', 'owner', 'coordinator')
+      AND ur.role IN ('owner', 'admin_finance', 'admin_logistic', 'tech_head', 'sales_partner')
     )
   );
 
