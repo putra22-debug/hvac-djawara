@@ -114,7 +114,7 @@ BEGIN
     'perawatan',
     'pending',
     v_schedule.next_scheduled_date,
-    'Scheduled Maintenance - ' || (SELECT name FROM client_properties WHERE id = v_schedule.property_id),
+    'Scheduled Maintenance - ' || (SELECT property_name FROM client_properties WHERE id = v_schedule.property_id),
     'Auto-generated from maintenance schedule. ' || 
     COALESCE(v_schedule.special_instructions, '') || E'\n\n' ||
     'Frequency: ' || v_schedule.frequency || E'\n' ||
@@ -176,8 +176,8 @@ BEGIN
   FOR v_schedule IN
     SELECT 
       pms.*,
-      c.company_name as client_name,
-      cp.name as property_name
+      c.name as client_name,
+      cp.property_name
     FROM property_maintenance_schedules pms
     JOIN clients c ON c.id = pms.client_id
     JOIN client_properties cp ON cp.id = pms.property_id
@@ -278,9 +278,9 @@ SELECT
   pms.id as schedule_id,
   pms.tenant_id,
   pms.client_id,
-  c.company_name as client_name,
+  c.name as client_name,
   pms.property_id,
-  cp.name as property_name,
+  cp.property_name,
   cp.address as property_address,
   pms.frequency,
   pms.next_scheduled_date,
