@@ -318,15 +318,15 @@ export default function TeamManagement() {
                           <p className="text-sm text-muted-foreground">
                             ⭐ {tech.average_rating.toFixed(1)}
                           </p>
-                        )}e) => {
-                          e.stopPropagation();
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedTech(tech);
                           setTokenDialog(true);
                         }}
@@ -424,7 +424,8 @@ export default function TeamManagement() {
           </div>
         </DialogContent>
       </Dialog>
-Detail Technician Dialog */}
+
+      {/* Detail Technician Dialog */}
       <Dialog open={detailDialog} onOpenChange={setDetailDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
