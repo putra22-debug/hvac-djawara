@@ -282,7 +282,7 @@ export function useTechnicians() {
           .from('user_tenant_roles')
           .select(`
             user_id,
-            profiles!inner(id, full_name)
+            profiles!user_tenant_roles_user_id_fkey(id, full_name)
           `)
           .eq('tenant_id', profile.active_tenant_id)
           .in('role', ['technician', 'tech_head', 'helper'])
