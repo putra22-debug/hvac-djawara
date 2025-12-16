@@ -380,16 +380,15 @@ export default function NewOrderPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="technician">Assign Technician</Label>
+                <Label htmlFor="technician">Assign Technician (Optional)</Label>
                 <Select 
-                  value={formData.assigned_to} 
+                  value={formData.assigned_to || undefined} 
                   onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
                 >
                   <SelectTrigger id="technician">
-                    <SelectValue placeholder="Leave unassigned or select technician" />
+                    <SelectValue placeholder="Leave unassigned" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
                     {technicians.map((tech) => (
                       <SelectItem key={tech.id} value={tech.id}>
                         {tech.full_name}
@@ -397,11 +396,11 @@ export default function NewOrderPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                {technicians.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    No technicians available. Order will be unassigned.
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  {technicians.length === 0 
+                    ? "No technicians available. Order will be unassigned." 
+                    : "Leave empty to create unassigned order"}
+                </p>
               </div>
 
               <div className="space-y-2">
