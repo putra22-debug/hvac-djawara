@@ -193,26 +193,29 @@ export default function NewOrderPage() {
         setTechnicians([])
       }
 
-      // Load sales/marketing team
-      const { data: salesData, error: salesError } = await supabase
-        .from('user_tenant_roles')
-        .select('user_id, role, profiles!inner(id, full_name)')
-        .eq('tenant_id', profile.active_tenant_id)
-        .in('role', ['sales', 'marketing', 'business_dev'])
-        .eq('is_active', true)
-        .order('profiles(full_name)')
+      // Load sales/marketing team - COMMENTED OUT (Coming Soon)
+      // TODO: Uncomment when sales roles are ready
+      // const { data: salesData, error: salesError } = await supabase
+      //   .from('user_tenant_roles')
+      //   .select('user_id, role, profiles!inner(id, full_name)')
+      //   .eq('tenant_id', profile.active_tenant_id)
+      //   .in('role', ['sales', 'marketing', 'business_dev'])
+      //   .eq('is_active', true)
+      //   .order('profiles(full_name)')
 
-      if (salesError) {
-        console.error('Sales team error:', salesError)
-      } else {
-        const mappedSales = (salesData || []).map((s: any) => ({
-          id: s.profiles.id,
-          full_name: s.profiles.full_name,
-          role: s.role
-        }))
-        console.log('Loaded sales team:', mappedSales)
-        setSalesTeam(mappedSales)
-      }
+      // if (salesError) {
+      //   console.error('Sales team error:', salesError)
+      // } else {
+      //   const mappedSales = (salesData || []).map((s: any) => ({
+      //     id: s.profiles.id,
+      //     full_name: s.profiles.full_name,
+      //     role: s.role
+      //   }))
+      //   console.log('Loaded sales team:', mappedSales)
+      //   setSalesTeam(mappedSales)
+      // }
+      
+      console.log('ℹ️ Sales team feature: Coming soon')
     } catch (err: any) {
       console.error('Error loading data:', err)
       setError(err.message)
@@ -749,6 +752,8 @@ export default function NewOrderPage() {
                 </p>
               </div>
 
+              {/* Sales/Marketing Referral - HIDDEN (Coming Soon) */}
+              {/* TODO: Uncomment when sales team feature is ready
               <div className="space-y-2">
                 <Label htmlFor="sales_referral">Sales/Marketing Referral (Optional)</Label>
                 <Select 
@@ -774,6 +779,7 @@ export default function NewOrderPage() {
                   Track who brought this job for commission/performance tracking
                 </p>
               </div>
+              */}
 
               {/* Approval Documents Upload */}
               {(formData.order_source === 'approved_proposal' || formData.order_source === 'customer_request') && (
