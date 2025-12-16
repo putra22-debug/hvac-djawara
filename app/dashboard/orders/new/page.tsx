@@ -23,8 +23,8 @@ import { useTechnicians } from '@/hooks/use-orders'
 export default function NewOrderPage() {
   const router = useRouter()
   const supabase = createClient()
-  const { clients } = useClients()
-  const { technicians } = useTechnicians()
+  const { clients, loading: clientsLoading } = useClients()
+  const { technicians, loading: techsLoading } = useTechnicians()
   
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -35,9 +35,10 @@ export default function NewOrderPage() {
     location_address: '',
     scheduled_date: '',
     scheduled_time: '',
-    priority: 'medium',
+    priority: 'normal',
     assigned_to: '',
     notes: '',
+    estimated_cost: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,6 +101,18 @@ export default function NewOrderPage() {
     }
   }
 
+  // Loading state
+  if (clientsLoading || techsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading form data...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6">
       <div className="max-w-3xl mx-auto space-y-6">
@@ -127,18 +140,28 @@ export default function NewOrderPage() {
                 <Select 
                   value={formData.client_id} 
                   onValueChange={(value) => setFormData({ ...formData, client_id: value })}
+                  disabled={!clients || clients.length === 0}
                 >
                   <SelectTrigger id="client">
-                    <SelectValue placeholder="Select a client" />
+                    <SelectValue placeholder={clients && clients.length > 0 ? "Select a client" : "No clients available"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name} - {client.phone}
-                      </SelectItem>
-                    ))}
+                    {clients && clients.length > 0 ? (
+                      clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name} - {client.phone}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>No clients found</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
+                {(!clients || clients.length === 0) && (
+                  <p className="text-sm text-amber-600">
+                    ⚠️ You need to create a client first. Go to Clients menu.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -204,22 +227,36 @@ export default function NewOrderPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="priority">Priority</Label>
-                <Select 
-                  value={formData.priority} 
-                  onValueChange={(value) => setFormData({ ...formData, priority: value })}
-                >
-                  <SelectTrigger id="priority">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select 
+                    value={formData.priority} 
+                    onValueChange={(value) => setFormData({ ...formData, priority: value })}
+                  >
+                    <SelectTrigger id="priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">🟢 Low</SelectItem>
+                      <SelectItem value="normal">🔵 Normal</SelectItem>
+                      <SelectItem value="high">🟠 High</SelectItem>
+                      <SelectItem value="urgent">🔴 Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="estimated_cost">Estimated Cost (optional)</Label>
+                  <Input
+                    id="estimated_cost"
+                    type="number"
+                    placeholder="0"
+                    value={formData.estimated_cost}
+                    onChange={(e) => setFormData({ ...formData, estimated_cost: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">Rough estimate in IDR</p>
+                </div>
               </div>
             </CardContent>
           </Card>
