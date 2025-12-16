@@ -70,41 +70,26 @@ export default function TechnicianVerifyPage() {
     try {
       const supabase = createClient();
 
-      // Sign up the technician with email confirmation disabled
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/technician/dashboard`,
-          data: {
-            role: "technician",
-            is_technician: true,
-          },
-        },
+      // Call RPC function to create auth account with auto-confirmed email
+      const { data, error } = await supabase.rpc("create_technician_auth_account", {
+        p_email: formData.email,
+        p_password: formData.password,
+        p_token: formData.token,
       });
 
-      if (signUpError) throw signUpError;
+      if (error) throw error;
 
-      // Update technician record with user_id
-      if (authData.user) {
-        const { error: updateError } = await supabase
-          .from("technicians")
-          .update({
-            user_id: authData.user.id,
-            is_verified: true,
-          })
-          .eq("email", formData.email);
-
-        if (updateError) throw updateError;
-
-        setVerified(true);
-        toast.success("Akun berhasil dibuat! Silakan login.");
-        
-        // Redirect to technician login
-        setTimeout(() => {
-          router.push("/technician/login");
-        }, 2000);
+      if (!data?.success) {
+        throw new Error("Gagal membuat akun");
       }
+
+      setVerified(true);
+      toast.success("Akun berhasil dibuat! Silakan login.");
+      
+      // Redirect to technician login
+      setTimeout(() => {
+        router.push("/technician/login");
+      }, 2000);
     } catch (error: any) {
       console.error("Create password error:", error);
       toast.error(error.message || "Gagal membuat akun");
