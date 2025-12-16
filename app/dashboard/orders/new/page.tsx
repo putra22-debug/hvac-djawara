@@ -714,30 +714,32 @@ export default function NewOrderPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">                <Label htmlFor=\"order_source\">Order Source <span className=\"text-red-500\">*</span></Label>
+              <div className="space-y-2">
+                <Label htmlFor="order_source">Order Source <span className="text-red-500">*</span></Label>
                 <Select 
                   value={formData.order_source} 
                   onValueChange={(value) => setFormData({ ...formData, order_source: value })}
                 >
-                  <SelectTrigger id=\"order_source\">
+                  <SelectTrigger id="order_source">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value=\"landing_page\">🌐 Landing Page (Auto)</SelectItem>
-                    <SelectItem value=\"customer_request\">📞 Customer Request</SelectItem>
-                    <SelectItem value=\"approved_proposal\">✅ Approved Proposal</SelectItem>
-                    <SelectItem value=\"admin_manual\">✏️ Admin Manual Entry</SelectItem>
-                    <SelectItem value=\"phone_call\">☎️ Phone Call</SelectItem>
-                    <SelectItem value=\"email\">📧 Email</SelectItem>
-                    <SelectItem value=\"walk_in\">🚶 Walk-in Customer</SelectItem>
+                    <SelectItem value="landing_page">🌐 Landing Page (Auto)</SelectItem>
+                    <SelectItem value="customer_request">📞 Customer Request</SelectItem>
+                    <SelectItem value="approved_proposal">✅ Approved Proposal</SelectItem>
+                    <SelectItem value="admin_manual">✏️ Admin Manual Entry</SelectItem>
+                    <SelectItem value="phone_call">☎️ Phone Call</SelectItem>
+                    <SelectItem value="email">📧 Email</SelectItem>
+                    <SelectItem value="walk_in">🚶 Walk-in Customer</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className=\"text-xs text-muted-foreground\">
+                <p className="text-xs text-muted-foreground">
                   Track how this order was created. Helps with analytics and technician verification.
                 </p>
               </div>
 
-              <div className=\"space-y-2\">                <Label htmlFor="sales_referral">Sales/Marketing Referral (Optional)</Label>
+              <div className="space-y-2">
+                <Label htmlFor="sales_referral">Sales/Marketing Referral (Optional)</Label>
                 <Select 
                   value={formData.sales_referral_id || undefined} 
                   onValueChange={(value) => setFormData({ ...formData, sales_referral_id: value })}
@@ -761,61 +763,63 @@ export default function NewOrderPage() {
                   Track who brought this job for commission/performance tracking
                 </p>
               </div>
+
               {/* Approval Documents Upload */}
               {(formData.order_source === 'approved_proposal' || formData.order_source === 'customer_request') && (
-                <div className=\"space-y-2 p-4 bg-blue-50 border border-blue-200 rounded-lg\">
-                  <Label htmlFor=\"documents\">📎 Upload Approval Documents</Label>
-                  <p className=\"text-xs text-blue-700 mb-2\">
+                <div className="space-y-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <Label htmlFor="documents">📎 Upload Approval Documents</Label>
+                  <p className="text-xs text-blue-700 mb-2">
                     Upload SPK (Surat Perintah Kerja), approval proofs, or proposals. Max 10MB per file.
                   </p>
                   <Input
-                    id=\"documents\"
-                    type=\"file\"
+                    id="documents"
+                    type="file"
                     multiple
-                    accept=\".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx\"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
                     onChange={handleFileUpload}
                     disabled={uploadingFiles}
-                    className=\"cursor-pointer\"
+                    className="cursor-pointer"
                   />
                   {uploadingFiles && (
-                    <p className=\"text-xs text-blue-600 flex items-center gap-2\">
-                      <Loader2 className=\"w-3 h-3 animate-spin\" />
+                    <p className="text-xs text-blue-600 flex items-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
                       Uploading files...
                     </p>
                   )}
                   
                   {/* Document List */}
                   {approvalDocuments.length > 0 && (
-                    <div className=\"mt-3 space-y-2\">
-                      <p className=\"text-xs font-semibold text-blue-900\">Uploaded Documents:</p>
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs font-semibold text-blue-900">Uploaded Documents:</p>
                       {approvalDocuments.map((doc) => (
-                        <div key={doc.id} className=\"flex items-center justify-between p-2 bg-white border border-blue-100 rounded\">
-                          <div className=\"flex items-center gap-2 flex-1 min-w-0\">
-                            <span className=\"text-lg\">📄</span>
-                            <div className=\"flex-1 min-w-0\">
-                              <p className=\"text-sm font-medium text-gray-900 truncate\">{doc.name}</p>
-                              <p className=\"text-xs text-gray-500\">{(doc.size / 1024).toFixed(1)} KB</p>
+                        <div key={doc.id} className="flex items-center justify-between p-2 bg-white border border-blue-100 rounded">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-lg">📄</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
+                              <p className="text-xs text-gray-500">{(doc.size / 1024).toFixed(1)} KB</p>
                             </div>
                           </div>
                           <Button
-                            type=\"button\"
-                            variant=\"ghost\"
-                            size=\"sm\"
+                            type="button"
+                            variant="ghost"
+                            size="sm"
                             onClick={() => removeDocument(doc.id)}
-                            className=\"text-red-600 hover:text-red-700 hover:bg-red-50\"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
-                            <X className=\"w-4 h-4\" />
+                            <X className="w-4 h-4" />
                           </Button>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  <p className=\"text-xs text-blue-600 mt-2\">
+                  <p className="text-xs text-blue-600 mt-2">
                     💡 These documents help technicians verify the work scope and authorization
                   </p>
                 </div>
-              )}            </CardContent>
+              )}
+            </CardContent>
           </Card>
 
           {/* Schedule & Assignment */}
