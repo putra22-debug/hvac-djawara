@@ -593,8 +593,10 @@ export default function NewOrderPage() {
                     type="date"
                     value={formData.start_date}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    min={new Date().toISOString().split('T')[0]}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Can select any date (past or future)
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="start_time">Start Time (24H)</Label>
@@ -618,7 +620,6 @@ export default function NewOrderPage() {
                     type="date"
                     value={formData.end_date}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                    min={formData.start_date || new Date().toISOString().split('T')[0]}
                   />
                 </div>
                 <div className="space-y-2">
