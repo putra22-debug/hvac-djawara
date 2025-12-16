@@ -173,7 +173,7 @@ export default function NewOrderPage() {
         .from('user_tenant_roles')
         .select('user_id, role, profiles!inner(id, full_name)')
         .eq('tenant_id', profile.active_tenant_id)
-        .in('role', ['sales', 'marketing', 'business_dev', 'account_manager'])
+        .in('role', ['sales', 'marketing', 'business_dev'])
         .eq('is_active', true)
         .order('profiles(full_name)')
 

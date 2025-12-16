@@ -3,6 +3,28 @@
 -- Track which sales/marketing person brought the job
 -- ============================================
 
+-- First, check existing enum values
+SELECT unnest(enum_range(NULL::user_role))::text as existing_roles;
+
+-- Add new role values to enum if not exists
+DO $$ 
+BEGIN
+    -- Add sales role
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'sales' AND enumtypid = 'user_role'::regtype) THEN
+        ALTER TYPE user_role ADD VALUE 'sales';
+    END IF;
+    
+    -- Add marketing role
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'marketing' AND enumtypid = 'user_role'::regtype) THEN
+        ALTER TYPE user_role ADD VALUE 'marketing';
+    END IF;
+    
+    -- Add business_dev role
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'business_dev' AND enumtypid = 'user_role'::regtype) THEN
+        ALTER TYPE user_role ADD VALUE 'business_dev';
+    END IF;
+END $$;
+
 -- Add sales_referral_id column to service_orders
 ALTER TABLE service_orders 
 ADD COLUMN IF NOT EXISTS sales_referral_id UUID REFERENCES profiles(id);
@@ -38,7 +60,7 @@ SELECT
 FROM profiles p
 JOIN user_tenant_roles utr ON p.id = utr.user_id
 LEFT JOIN service_orders so ON p.id = so.sales_referral_id
-WHERE utr.role IN ('sales', 'marketing', 'business_dev', 'account_manager')
+WHERE utr.role IN ('sales', 'marketing', 'business_dev')
 AND utr.is_active = true
 GROUP BY p.id, p.full_name, utr.role
 ORDER BY total_jobs DESC;
