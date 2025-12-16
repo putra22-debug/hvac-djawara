@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, X, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,17 +17,26 @@ import {
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { Separator } from '@/components/ui/separator'
 
 interface Client {
   id: string
   name: string
   phone: string
+  email?: string
+  address?: string
 }
 
 interface Technician {
   id: string
   full_name: string
 }
+
+const TIME_SLOTS = [
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'
+]
 
 export default function NewOrderPage() {
   const router = useRouter()
@@ -36,6 +45,8 @@ export default function NewOrderPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [technicians, setTechnicians] = useState<Technician[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [showNewClientForm, setShowNewClientForm] = useState(false)
+  const [creatingClient, setCreatingClient] = useState(false)
   
   const [formData, setFormData] = useState({
     client_id: '',
@@ -50,90 +61,24 @@ export default function NewOrderPage() {
     notes: '',
   })
 
+  const [newClientData, setNewClientData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+  })
+
   // Load clients and technicians
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setDataLoading(true)
-        setError(null)
-        const supabase = createClient()
-
-        // Get current user and tenant
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          throw new Error('Not authenticated')
-        }
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('active_tenant_id')
-          .eq('id', user.id)
-          .single()
-
-        if (!profile?.active_tenant_id) {
-          throw new Error('No active tenant')
-        }
-
-        // Load clients
-        const { data: clientsData, error: clientsError } = await supabase
-          .from('clients')
-          .select('id, name, phone')
-          .eq('tenant_id', profile.active_tenant_id)
-          .eq('is_active', true)
-          .order('name')
-
-        if (clientsError) {
-          console.error('Clients error:', clientsError)
-        } else {
-          setClients(clientsData || [])
-        }
-
-        // Load technicians from user_tenant_roles
-        const { data: techData, error: techError } = await supabase
-          .from('user_tenant_roles')
-          .select(`
-            user_id,
-            profiles!user_tenant_roles_user_id_fkey(id, full_name)
-          `)
-          .eq('tenant_id', profile.active_tenant_id)
-          .in('role', ['technician', 'tech_head', 'helper'])
-          .eq('is_active', true)
-
-        if (techError) {
-          console.error('Technicians error:', techError)
-        } else {
-          const techList = (techData || []).map((item: any) => ({
-            id: item.profiles?.id || '',
-            full_name: item.profiles?.full_name || 'Unknown',
-          })).filter(t => t.id)
-          
-          setTechnicians(techList)
-        }
-      } catch (err: any) {
-        console.error('Error loading data:', err)
-        setError(err.message)
-        toast.error(err.message || 'Failed to load form data')
-      } finally {
-        setDataLoading(false)
-      }
-    }
-
     loadData()
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!formData.client_id || !formData.order_type || !formData.service_title || !formData.location_address) {
-      toast.error('Please fill in all required fields')
-      return
-    }
-
-    setLoading(true)
-
+  const loadData = async () => {
     try {
+      setDataLoading(true)
+      setError(null)
       const supabase = createClient()
-      
+
       // Get current user and tenant
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -150,8 +95,132 @@ export default function NewOrderPage() {
         throw new Error('No active tenant')
       }
 
+      // Load clients
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, name, phone, email, address')
+        .eq('tenant_id', profile.active_tenant_id)
+        .eq('is_active', true)
+        .order('name')
+
+      if (clientsError) {
+        console.error('Clients error:', clientsError)
+      } else {
+        setClients(clientsData || [])
+      }
+
+      // Load technicians from technicians table
+      const { data: techData, error: techError } = await supabase
+        .from('technicians')
+        .select('id, full_name')
+        .eq('tenant_id', profile.active_tenant_id)
+        .eq('is_active', true)
+        .eq('status', 'verified')
+        .order('full_name')
+
+      if (techError) {
+        console.error('Technicians error:', techError)
+      } else {
+        setTechnicians(techData || [])
+      }
+    } catch (err: any) {
+      console.error('Error loading data:', err)
+      setError(err.message)
+      toast.error(err.message || 'Failed to load form data')
+    } finally {
+      setDataLoading(false)
+    }
+  }
+
+  const handleCreateClient = async () => {
+    if (!newClientData.name || !newClientData.phone) {
+      toast.error('Name and phone are required')
+      return
+    }
+
+    setCreatingClient(true)
+
+    try {
+      const supabase = createClient()
+      
+      // Get current user and tenant
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('active_tenant_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.active_tenant_id) throw new Error('No active tenant')
+
+      // Create client
+      const { data: newClient, error: createError } = await supabase
+        .from('clients')
+        .insert({
+          tenant_id: profile.active_tenant_id,
+          name: newClientData.name,
+          phone: newClientData.phone,
+          email: newClientData.email || null,
+          address: newClientData.address || null,
+          is_active: true,
+        })
+        .select()
+        .single()
+
+      if (createError) throw createError
+
+      toast.success(`Client "${newClientData.name}" created successfully!`)
+      
+      // Add to clients list and select it
+      setClients([...clients, newClient])
+      setFormData({ ...formData, client_id: newClient.id })
+      
+      // Reset and hide form
+      setNewClientData({ name: '', phone: '', email: '', address: '' })
+      setShowNewClientForm(false)
+    } catch (error: any) {
+      console.error('Error creating client:', error)
+      toast.error(error.message || 'Failed to create client')
+    } finally {
+      setCreatingClient(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.client_id || !formData.order_type || !formData.service_title || !formData.location_address) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const supabase = createClient()
+      
+      // Get current user and tenant
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('active_tenant_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.active_tenant_id) throw new Error('No active tenant')
+
+      // Determine status based on assignment and schedule
+      let orderStatus = 'listing'
+      if (formData.scheduled_date && formData.scheduled_time) {
+        orderStatus = formData.assigned_to ? 'scheduled' : 'pending'
+      }
+
       // Create order
-      const { data, error } = await supabase
+      const { data: newOrder, error: orderError } = await supabase
         .from('service_orders')
         .insert({
           tenant_id: profile.active_tenant_id,
@@ -163,15 +232,32 @@ export default function NewOrderPage() {
           scheduled_date: formData.scheduled_date || null,
           scheduled_time: formData.scheduled_time || null,
           priority: formData.priority,
-          assigned_to: formData.assigned_to || null,
           notes: formData.notes || null,
-          status: formData.assigned_to ? 'scheduled' : 'listing',
+          status: orderStatus,
           created_by: user.id,
         })
         .select()
         .single()
 
-      if (error) throw error
+      if (orderError) throw orderError
+
+      // If technician assigned, create work order assignment
+      if (formData.assigned_to && newOrder.id) {
+        const { error: assignError } = await supabase
+          .from('work_order_assignments')
+          .insert({
+            order_id: newOrder.id,
+            technician_id: formData.assigned_to,
+            assigned_by: user.id,
+            assignment_date: new Date().toISOString(),
+            status: 'assigned',
+          })
+
+        if (assignError) {
+          console.error('Error assigning technician:', assignError)
+          toast.error('Order created but failed to assign technician')
+        }
+      }
 
       toast.success('Order created successfully!')
       router.push(`/dashboard/orders`)
@@ -236,12 +322,113 @@ export default function NewOrderPage() {
           {/* Client Selection */}
           <Card>
             <CardHeader>
-              <CardTitle>Client Information</CardTitle>
-              <CardDescription>Select an existing client</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Client Information</CardTitle>
+                  <CardDescription>Select an existing client or add a new one</CardDescription>
+                </div>
+                {!showNewClientForm && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewClientForm(true)}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add New Client
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {showNewClientForm ? (
+                <>
+                  <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 bg-blue-50 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-blue-900">New Client Form</h3>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowNewClientForm(false)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="new_client_name">Client Name *</Label>
+                        <Input
+                          id="new_client_name"
+                          placeholder="e.g., PT Jaya Abadi"
+                          value={newClientData.name}
+                          onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })}
+                          disabled={creatingClient}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="new_client_phone">Phone *</Label>
+                        <Input
+                          id="new_client_phone"
+                          type="tel"
+                          placeholder="e.g., 08123456789"
+                          value={newClientData.phone}
+                          onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+                          disabled={creatingClient}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="new_client_email">Email</Label>
+                      <Input
+                        id="new_client_email"
+                        type="email"
+                        placeholder="client@email.com"
+                        value={newClientData.email}
+                        onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+                        disabled={creatingClient}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="new_client_address">Address</Label>
+                      <Textarea
+                        id="new_client_address"
+                        placeholder="Complete address..."
+                        value={newClientData.address}
+                        onChange={(e) => setNewClientData({ ...newClientData, address: e.target.value })}
+                        rows={2}
+                        disabled={creatingClient}
+                      />
+                    </div>
+
+                    <Button
+                      type="button"
+                      onClick={handleCreateClient}
+                      disabled={creatingClient}
+                      className="w-full"
+                    >
+                      {creatingClient ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating Client...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create & Select Client
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <Separator />
+                </>
+              ) : null}
+
               <div className="space-y-2">
-                <Label htmlFor="client">Client *</Label>
+                <Label htmlFor="client">Select Client *</Label>
                 <Select 
                   value={formData.client_id} 
                   onValueChange={(value) => setFormData({ ...formData, client_id: value })}
@@ -262,9 +449,9 @@ export default function NewOrderPage() {
                     )}
                   </SelectContent>
                 </Select>
-                {clients.length === 0 && (
+                {clients.length === 0 && !showNewClientForm && (
                   <p className="text-sm text-amber-600">
-                    ⚠️ You need to create a client first. Go to Clients menu.
+                    ⚠️ No clients available. Click "Add New Client" button above.
                   </p>
                 )}
               </div>
@@ -273,12 +460,15 @@ export default function NewOrderPage() {
                 <Label htmlFor="location">Service Location *</Label>
                 <Textarea
                   id="location"
-                  placeholder="Enter complete address..."
+                  placeholder="Enter complete service address..."
                   value={formData.location_address}
                   onChange={(e) => setFormData({ ...formData, location_address: e.target.value })}
                   rows={3}
                   required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Can be different from client's registered address
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -299,13 +489,13 @@ export default function NewOrderPage() {
                     <SelectValue placeholder="Select service type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="installation">Installation</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
-                    <SelectItem value="repair">Repair</SelectItem>
-                    <SelectItem value="survey">Survey</SelectItem>
-                    <SelectItem value="troubleshooting">Troubleshooting</SelectItem>
-                    <SelectItem value="konsultasi">Consultation</SelectItem>
-                    <SelectItem value="pengadaan">Procurement</SelectItem>
+                    <SelectItem value="installation">🔧 Installation</SelectItem>
+                    <SelectItem value="maintenance">🛠️ Maintenance</SelectItem>
+                    <SelectItem value="repair">⚙️ Repair</SelectItem>
+                    <SelectItem value="survey">📋 Survey</SelectItem>
+                    <SelectItem value="troubleshooting">🔍 Troubleshooting</SelectItem>
+                    <SelectItem value="konsultasi">💬 Consultation</SelectItem>
+                    <SelectItem value="pengadaan">📦 Procurement</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -356,6 +546,9 @@ export default function NewOrderPage() {
           <Card>
             <CardHeader>
               <CardTitle>Schedule & Assignment</CardTitle>
+              <CardDescription>
+                Schedule will be synced to client portal automatically
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -366,16 +559,39 @@ export default function NewOrderPage() {
                     type="date"
                     value={formData.scheduled_date}
                     onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                    min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="time">Scheduled Time</Label>
-                  <Input
-                    id="time"
-                    type="time"
+                  <Select
                     value={formData.scheduled_time}
-                    onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
-                  />
+                    onValueChange={(value) => setFormData({ ...formData, scheduled_time: value })}
+                  >
+                    <SelectTrigger id="time">
+                      <SelectValue placeholder="Select time slot">
+                        {formData.scheduled_time ? (
+                          <span className="flex items-center">
+                            <Clock className="w-4 h-4 mr-2" />
+                            {formData.scheduled_time}
+                          </span>
+                        ) : (
+                          'Select time'
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_SLOTS.map((time) => (
+                        <SelectItem key={time} value={time}>
+                          <Clock className="w-4 h-4 mr-2 inline" />
+                          {time}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Select from preset time slots
+                  </p>
                 </div>
               </div>
 
@@ -391,23 +607,23 @@ export default function NewOrderPage() {
                   <SelectContent>
                     {technicians.map((tech) => (
                       <SelectItem key={tech.id} value={tech.id}>
-                        {tech.full_name}
+                        👤 {tech.full_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   {technicians.length === 0 
-                    ? "No technicians available. Order will be unassigned." 
-                    : "Leave empty to create unassigned order"}
+                    ? "No verified technicians available. Order will be unassigned." 
+                    : "Technician will receive notification and see this in their work queue"}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes">Internal Notes</Label>
                 <Textarea
                   id="notes"
-                  placeholder="Internal notes..."
+                  placeholder="Internal notes (not visible to client)..."
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={3}
@@ -416,8 +632,31 @@ export default function NewOrderPage() {
             </CardContent>
           </Card>
 
+          {/* Summary Info */}
+          {formData.scheduled_date && formData.scheduled_time && (
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <div className="h-8 w-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Clock className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-semibold text-green-900">Schedule Confirmation</h4>
+                    <p className="text-sm text-green-700">
+                      This order is scheduled for <strong>{new Date(formData.scheduled_date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong> at <strong>{formData.scheduled_time}</strong>
+                    </p>
+                    <p className="text-xs text-green-600 mt-2">
+                      ✓ Client will be able to view this schedule in their portal<br />
+                      {formData.assigned_to && '✓ Assigned technician will receive notification'}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel
             </Button>
@@ -425,7 +664,7 @@ export default function NewOrderPage() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
+                  Creating Order...
                 </>
               ) : (
                 'Create Order'
