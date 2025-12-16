@@ -50,12 +50,15 @@ export default function NewOrderPage() {
   
   const [formData, setFormData] = useState({
     client_id: '',
+    client_phone: '',
     order_type: '',
     service_title: '',
     service_description: '',
     location_address: '',
-    scheduled_date: '',
-    scheduled_time: '',
+    start_date: '',
+    start_time: '',
+    end_date: '',
+    end_time: '',
     priority: 'normal',
     assigned_to: '',
     notes: '',
@@ -72,6 +75,20 @@ export default function NewOrderPage() {
   useEffect(() => {
     loadData()
   }, [])
+
+  // Auto-fill client data when client selected
+  useEffect(() => {
+    if (formData.client_id && clients.length > 0) {
+      const selectedClient = clients.find(c => c.id === formData.client_id)
+      if (selectedClient) {
+        setFormData(prev => ({
+          ...prev,
+          client_phone: selectedClient.phone,
+          location_address: selectedClient.address || ''
+        }))
+      }
+    }
+  }, [formData.client_id, clients])
 
   const loadData = async () => {
     try {
@@ -215,7 +232,7 @@ export default function NewOrderPage() {
 
       // Determine status based on assignment and schedule
       let orderStatus = 'listing'
-      if (formData.scheduled_date && formData.scheduled_time) {
+      if (formData.start_date) {
         orderStatus = formData.assigned_to ? 'scheduled' : 'pending'
       }
 
@@ -229,8 +246,10 @@ export default function NewOrderPage() {
           service_title: formData.service_title,
           service_description: formData.service_description || null,
           location_address: formData.location_address,
-          scheduled_date: formData.scheduled_date || null,
-          scheduled_time: formData.scheduled_time || null,
+          scheduled_date: formData.start_date || null,
+          scheduled_time: formData.start_time || null,
+          estimated_end_date: formData.end_date || null,
+          estimated_end_time: formData.end_time || null,
           priority: formData.priority,
           notes: formData.notes || null,
           status: orderStatus,
@@ -456,6 +475,21 @@ export default function NewOrderPage() {
                 )}
               </div>
 
+              {formData.client_id && (
+                <div className="space-y-2">
+                  <Label htmlFor="client_phone">Client Phone</Label>
+                  <Input
+                    id="client_phone"
+                    value={formData.client_phone}
+                    disabled
+                    className="bg-gray-50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    📞 Auto-filled from client data
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="location">Service Location *</Label>
                 <Textarea
@@ -467,7 +501,7 @@ export default function NewOrderPage() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Can be different from client's registered address
+                  📍 {formData.client_id ? 'Auto-filled from client address (you can edit)' : 'Enter complete service address'}
                 </p>
               </div>
             </CardContent>
@@ -545,55 +579,71 @@ export default function NewOrderPage() {
           {/* Schedule & Assignment */}
           <Card>
             <CardHeader>
-              <CardTitle>Schedule & Assignment</CardTitle>
+              <CardTitle>Project Schedule</CardTitle>
               <CardDescription>
-                Schedule will be synced to client portal automatically
+                Set start and end date/time for project estimation. Schedule will sync to client portal.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="date">Scheduled Date</Label>
+                  <Label htmlFor="start_date">Start Date</Label>
                   <Input
-                    id="date"
+                    id="start_date"
                     type="date"
-                    value={formData.scheduled_date}
-                    onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                     min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="time">Scheduled Time</Label>
-                  <Select
-                    value={formData.scheduled_time}
-                    onValueChange={(value) => setFormData({ ...formData, scheduled_time: value })}
-                  >
-                    <SelectTrigger id="time">
-                      <SelectValue placeholder="Select time slot">
-                        {formData.scheduled_time ? (
-                          <span className="flex items-center">
-                            <Clock className="w-4 h-4 mr-2" />
-                            {formData.scheduled_time}
-                          </span>
-                        ) : (
-                          'Select time'
-                        )}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_SLOTS.map((time) => (
-                        <SelectItem key={time} value={time}>
-                          <Clock className="w-4 h-4 mr-2 inline" />
-                          {time}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="start_time">Start Time (24H)</Label>
+                  <Input
+                    id="start_time"
+                    type="time"
+                    value={formData.start_time}
+                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                  />
                   <p className="text-xs text-muted-foreground">
-                    Select from preset time slots
+                    Format: 00:00 - 23:59
                   </p>
                 </div>
               </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="end_date">End Date (Estimated)</Label>
+                  <Input
+                    id="end_date"
+                    type="date"
+                    value={formData.end_date}
+                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    min={formData.start_date || new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end_time">End Time (24H)</Label>
+                  <Input
+                    id="end_time"
+                    type="time"
+                    value={formData.end_time}
+                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Estimated completion time
+                  </p>
+                </div>
+              </div>
+
+              {formData.start_date && formData.end_date && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-900">
+                    📅 <strong>Project Duration:</strong> {
+                      Math.ceil((new Date(formData.end_date).getTime() - new Date(formData.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1
+                    } day(s)
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="technician">Assign Technician (Optional)</Label>
@@ -633,7 +683,7 @@ export default function NewOrderPage() {
           </Card>
 
           {/* Summary Info */}
-          {formData.scheduled_date && formData.scheduled_time && (
+          {formData.start_date && (
             <Card className="border-green-200 bg-green-50">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
@@ -641,12 +691,21 @@ export default function NewOrderPage() {
                     <Clock className="h-4 w-4 text-white" />
                   </div>
                   <div className="space-y-1">
-                    <h4 className="font-semibold text-green-900">Schedule Confirmation</h4>
+                    <h4 className="font-semibold text-green-900">Project Schedule Confirmation</h4>
                     <p className="text-sm text-green-700">
-                      This order is scheduled for <strong>{new Date(formData.scheduled_date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong> at <strong>{formData.scheduled_time}</strong>
+                      <strong>Start:</strong> {new Date(formData.start_date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      {formData.start_time && ` at ${formData.start_time}`}
+                      <br />
+                      {formData.end_date && (
+                        <>
+                          <strong>End (Est):</strong> {new Date(formData.end_date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                          {formData.end_time && ` at ${formData.end_time}`}
+                        </>
+                      )}
                     </p>
                     <p className="text-xs text-green-600 mt-2">
-                      ✓ Client will be able to view this schedule in their portal<br />
+                      ✓ Client will see this schedule in their portal<br />
+                      ✓ Supports 24-hour format for flexible scheduling<br />
                       {formData.assigned_to && '✓ Assigned technician will receive notification'}
                     </p>
                   </div>
