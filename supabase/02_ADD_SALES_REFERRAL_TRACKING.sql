@@ -1,42 +1,6 @@
 -- ============================================
--- ADD SALES REFERRAL TRACKING TO SERVICE ORDERS
--- Track which sales/marketing person brought the job
--- ============================================
-
--- STEP 1: Add new role values to enum (MUST RUN THIS FIRST, THEN COMMIT)
--- After running this, refresh/reconnect before running the rest
--- ============================================
-
--- Check existing enum values
-DO $$ 
-BEGIN
-    -- Add sales role
-    BEGIN
-        ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'sales';
-    EXCEPTION WHEN duplicate_object THEN
-        NULL;
-    END;
-    
-    -- Add marketing role
-    BEGIN
-        ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'marketing';
-    EXCEPTION WHEN duplicate_object THEN
-        NULL;
-    END;
-    
-    -- Add business_dev role
-    BEGIN
-        ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'business_dev';
-    EXCEPTION WHEN duplicate_object THEN
-        NULL;
-    END;
-END $$;
-
--- Show all enum values
-SELECT unnest(enum_range(NULL::user_role))::text as role_values;
-
--- ============================================
--- STOP HERE! Commit the transaction, then run the rest below
+-- STEP 2: ADD SALES REFERRAL TRACKING
+-- Run this AFTER step 1 has been committed
 -- ============================================
 
 -- Add sales_referral_id column to service_orders
@@ -60,10 +24,7 @@ FROM information_schema.columns
 WHERE table_name = 'service_orders'
 AND column_name = 'sales_referral_id';
 
--- STEP 2: Create view for sales performance tracking
--- (Run this AFTER the enum values are committed)
--- ============================================
-
+-- Create view for sales performance tracking
 CREATE OR REPLACE VIEW sales_performance AS
 SELECT 
     p.id as sales_id,
@@ -103,7 +64,7 @@ SELECT
     so.service_title,
     so.status,
     p.full_name as referred_by,
-    utr.role as referral_role,
+    utr.role::text as referral_role,
     so.created_at as job_date
 FROM service_orders so
 LEFT JOIN profiles p ON so.sales_referral_id = p.id
