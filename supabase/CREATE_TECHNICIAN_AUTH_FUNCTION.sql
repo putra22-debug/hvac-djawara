@@ -3,6 +3,9 @@
 -- Creates Supabase auth account for technician with email auto-confirmed
 -- ============================================
 
+-- Enable pgcrypto extension for password encryption
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE OR REPLACE FUNCTION create_technician_auth_account(
   p_email TEXT,
   p_password TEXT,

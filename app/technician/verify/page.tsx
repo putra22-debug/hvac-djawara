@@ -68,19 +68,23 @@ export default function TechnicianVerifyPage() {
     setLoading(true);
 
     try {
-      const supabase = createClient();
-
-      // Call RPC function to create auth account with auto-confirmed email
-      const { data, error } = await supabase.rpc("create_technician_auth_account", {
-        p_email: formData.email,
-        p_password: formData.password,
-        p_token: formData.token,
+      // Call API route to create account with admin privileges
+      const response = await fetch("/api/technician/create-account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          token: formData.token,
+        }),
       });
 
-      if (error) throw error;
+      const data = await response.json();
 
-      if (!data?.success) {
-        throw new Error("Gagal membuat akun");
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal membuat akun");
       }
 
       setVerified(true);
