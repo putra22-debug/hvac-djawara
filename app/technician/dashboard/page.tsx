@@ -71,40 +71,60 @@ export default function TechnicianDashboard() {
         .eq("user_id", user.id)
         .single();
 
-      if (techError) throw techError;
+      if (techError) {
+        console.error("Error fetching technician:", techError);
+        throw new Error("Teknisi tidak ditemukan. Hubungi admin.");
+      }
+      
       setTechnician(techData);
 
-      // Fetch assigned work orders with join
-      const { data: ordersData, error: ordersError } = await supabase
+      // Set active tenant for this technician to enable RLS access
+      if (techData.tenant_id) {
+        await supabase
+          .from('profiles')
+          .update({ active_tenant_id: techData.tenant_id })
+          .eq('id', user.id);
+      }
+
+      // Fetch assigned work orders
+      const { data: assignmentsData, error: assignError } = await supabase
         .from("work_order_assignments")
-        .select(`
-          id,
-          assignment_status,
-          assigned_at,
-          service_orders (
-            id,
-            order_number,
-            service_title,
-            service_description,
-            location_address,
-            scheduled_date,
-            status,
-            priority,
-            estimated_duration
-          )
-        `)
+        .select("id, assignment_status, assigned_at, service_order_id")
         .eq("technician_id", techData.id)
         .in("assignment_status", ["assigned", "accepted", "in_progress"])
         .order("assigned_at", { ascending: false });
 
-      if (ordersError) throw ordersError;
+      if (assignError) {
+        console.error("Error fetching assignments:", assignError);
+        throw assignError;
+      }
 
-      // Flatten the data structure
-      const formattedOrders = ordersData.map((assignment: any) => ({
-        ...assignment.service_orders,
-        assignment_status: assignment.assignment_status,
-        assigned_at: assignment.assigned_at,
-      }));
+      if (!assignmentsData || assignmentsData.length === 0) {
+        setWorkOrders([]);
+        return;
+      }
+
+      // Fetch service orders separately
+      const orderIds = assignmentsData.map(a => a.service_order_id);
+      const { data: ordersData, error: ordersError } = await supabase
+        .from("service_orders")
+        .select("id, order_number, service_title, service_description, location_address, scheduled_date, status, priority, estimated_duration")
+        .in("id", orderIds);
+
+      if (ordersError) {
+        console.error("Error fetching orders:", ordersError);
+        throw ordersError;
+      }
+
+      // Merge assignment data with order data
+      const formattedOrders = assignmentsData.map((assignment: any) => {
+        const order = ordersData.find(o => o.id === assignment.service_order_id);
+        return {
+          ...order,
+          assignment_status: assignment.assignment_status,
+          assigned_at: assignment.assigned_at,
+        };
+      }).filter(order => order.id); // Filter out any orders not found
 
       setWorkOrders(formattedOrders);
     } catch (error: any) {
