@@ -230,21 +230,6 @@ export default async function ServiceOrderReportPage({
           </div>
         </div>
 
-        {/* Print Styles */}
-        <style jsx global>{`
-          @media print {
-            body {
-              print-color-adjust: exact;
-              -webkit-print-color-adjust: exact;
-            }
-            .print\\:shadow-none {
-              box-shadow: none !important;
-            }
-            button, a {
-              display: none !important;
-            }
-          }
-        `}</style>
       </div>
     </div>
   )

@@ -161,3 +161,35 @@
 .animate-scroll-left:hover {
   animation-play-state: paused;
 }
+
+/* Print Styles for PDF Reports */
+@media print {
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  /* Hide navigation, buttons, and non-essential elements */
+  button,
+  a[href^="/"],
+  nav,
+  header,
+  footer:not(#report-footer) {
+    display: none !important;
+  }
+  
+  /* Ensure content fits on page */
+  #report-content {
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+  
+  /* Better page breaks */
+  .print-page-break {
+    page-break-before: always;
+  }
+  
+  .print-no-break {
+    page-break-inside: avoid;
+  }
+}
