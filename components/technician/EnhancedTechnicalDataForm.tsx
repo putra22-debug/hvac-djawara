@@ -511,6 +511,10 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
       await saveSpareparts(workLogId);
       
       toast.success("Data teknis berhasil disimpan!");
+      
+      // Small delay to ensure data is committed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       onSuccess?.();
       
     } catch (error: any) {
