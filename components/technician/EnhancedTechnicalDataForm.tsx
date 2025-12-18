@@ -73,6 +73,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
   const [uploading, setUploading] = useState(false);
   const [calculatingDistance, setCalculatingDistance] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [assignmentId, setAssignmentId] = useState<string | null>(null);
 
   // Fetch and auto-populate order data
   useEffect(() => {
@@ -125,6 +126,19 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
       
       if (techData) {
         setTechnicianName(techData.full_name);
+      }
+      
+      // Fetch assignment_id
+      const { data: assignmentData } = await supabase
+        .from('technician_assignments')
+        .select('id')
+        .eq('service_order_id', orderId)
+        .eq('technician_id', technicianId)
+        .eq('status', 'assigned')
+        .maybeSingle();
+      
+      if (assignmentData) {
+        setAssignmentId(assignmentData.id);
       }
       
     } catch (error: any) {
@@ -322,6 +336,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
       const workLogData = {
         service_order_id: orderId,
         technician_id: technicianId,
+        assignment_id: assignmentId,
         
         // BAST fields
         nama_personal: formData.nama_personal,
