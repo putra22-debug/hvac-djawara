@@ -57,8 +57,8 @@ export default async function ClientDashboardPage() {
     <div className="p-6">
       {/* Welcome Section */}
       <div className="mb-8">
-        <div className="flex items-start justify-between">
-          <div>
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-900">
               Welcome back, {client?.name || 'Client'}!
             </h1>
