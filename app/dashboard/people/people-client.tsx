@@ -363,12 +363,12 @@ export function PeopleManagementClient({
                 const phone = profile.phone || ''
                 
                 return (
-                <div
-                  key={member.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border ${
-                    member.is_active ? 'bg-white' : 'bg-gray-50 opacity-60'
-                  }`}
-                >
+                  <div
+                    key={member.id}
+                    className={`flex items-center justify-between p-4 rounded-lg border ${
+                      member.is_active ? 'bg-white' : 'bg-gray-50 opacity-60'
+                    }`}
+                  >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-lg">
                       {fullName.charAt(0).toUpperCase()}
@@ -434,8 +434,9 @@ export function PeopleManagementClient({
                       )}
                     </Button>
                   </div>
-                </div>
-              )}))}
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
