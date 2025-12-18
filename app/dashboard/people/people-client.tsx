@@ -11,6 +11,21 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { 
   Users, 
   UserPlus, 
@@ -67,6 +82,13 @@ export function PeopleManagementClient({
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [isAddingMember, setIsAddingMember] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [newMember, setNewMember] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    role: 'sales_partner'
+  })
   const supabase = createClient()
 
   // Group roles by category
@@ -166,6 +188,63 @@ export function PeopleManagementClient({
       toast.error('Failed to update member status')
     }
   }
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      // Call API to create user and assign role
+      const response = await fetch('/api/people/add-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: newMember.fullName,
+          email: newMember.email,
+          phone: newMember.phone,
+          role: newMember.role,
+          tenantId: tenantId
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add member')
+      }
+
+      // Show invitation URL
+      toast.success('Invitation created successfully!', {
+        description: `Invitation link: ${result.invitationUrl}`,
+        duration: 10000
+      })
+
+      // Copy invitation link to clipboard
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(result.invitationUrl)
+        toast.info('Invitation link copied to clipboard!')
+      }
+
+      // Reset form
+      setNewMember({
+        fullName: '',
+        email: '',
+        phone: '',
+        role: 'sales_partner'
+      })
+      setIsAddingMember(false)
+    } catch (error: any) {
+      console.error('Error adding member:', error)
+      toast.error(error.message || 'Failed to add team member')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Sales/Marketing roles for the form
+  const salesRoles = roleHierarchy.filter(r => 
+    ['sales_partner', 'marketing', 'business_dev', 'owner'].includes(r.role_name)
+  )
 
   return (
     <div className="space-y-6">
@@ -372,6 +451,100 @@ export function PeopleManagementClient({
           </CardContent>
         </Card>
       )}
+
+      {/* Add Member Dialog */}
+      <Dialog open={isAddingMember} onOpenChange={setIsAddingMember}>
+        <DialogContent className="sm:max-w-[500px]">
+          <form onSubmit={handleAddMember}>
+            <DialogHeader>
+              <DialogTitle>Add Sales Partner / Marketing</DialogTitle>
+              <DialogDescription>
+                Tambahkan mitra, sales, atau marketing untuk tracking client acquisition
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="fullName">Full Name *</Label>
+                <Input
+                  id="fullName"
+                  placeholder="Enter full name"
+                  value={newMember.fullName}
+                  onChange={(e) => setNewMember({ ...newMember, fullName: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="email@example.com"
+                  value={newMember.email}
+                  onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  Invitation email akan dikirim ke alamat ini
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="08123456789"
+                  value={newMember.phone}
+                  onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="role">Role *</Label>
+                <Select
+                  value={newMember.role}
+                  onValueChange={(value) => setNewMember({ ...newMember, role: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {salesRoles.map((role) => (
+                      <SelectItem key={role.role_name} value={role.role_name}>
+                        {role.display_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">
+                  Role ini akan muncul di dropdown referral saat input client baru
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+                <strong>Note:</strong> User akan menerima email invitation untuk setup password. 
+                Setelah aktivasi, mereka akan muncul di dropdown &quot;Referred By&quot; pada form client.
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsAddingMember(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Adding...' : 'Add Member'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
