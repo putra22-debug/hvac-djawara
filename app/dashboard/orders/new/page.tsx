@@ -78,7 +78,7 @@ export default function NewOrderPage() {
     start_time: '',
     end_date: '',
     end_time: '',
-    priority: 'normal',
+    priority: 'medium',
     assigned_to: '',
     sales_referral_id: '',
     order_source: 'admin_manual',
@@ -344,10 +344,9 @@ export default function NewOrderPage() {
       // If technicians assigned, create work order assignments for all
       if (selectedTechnicians.length > 0 && newOrder.id) {
         const assignments = selectedTechnicians.map(techId => ({
-          order_id: newOrder.id,
+          service_order_id: newOrder.id,
           technician_id: techId,
           assigned_by: user.id,
-          assignment_date: new Date().toISOString(),
           status: 'assigned',
         }))
 
@@ -652,7 +651,7 @@ export default function NewOrderPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="low">🟢 Low</SelectItem>
-                    <SelectItem value="normal">🔵 Normal</SelectItem>
+                    <SelectItem value="medium">🔵 Medium</SelectItem>
                     <SelectItem value="high">🟠 High</SelectItem>
                     <SelectItem value="urgent">🔴 Urgent</SelectItem>
                   </SelectContent>
