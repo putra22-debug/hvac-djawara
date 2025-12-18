@@ -178,6 +178,15 @@ export default function OrdersPage() {
     })
   }
 
+  const formatDateRange = (startDate?: string, endDate?: string) => {
+    if (!startDate) return '-'
+    const start = formatDate(startDate)
+    if (!endDate) return start
+    const end = formatDate(endDate)
+    if (start === end) return start
+    return `${start} - ${end}`
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -407,7 +416,17 @@ export default function OrdersPage() {
                       <TableCell className="max-w-[200px] truncate">
                         {order.service_location}
                       </TableCell>
-                      <TableCell>{formatDate(order.scheduled_date)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-sm">{formatDateRange(order.scheduled_date, order.estimated_end_date)}</span>
+                          {order.scheduled_date && order.estimated_end_date && 
+                            new Date(order.estimated_end_date).getTime() !== new Date(order.scheduled_date).getTime() && (
+                            <span className="text-xs text-muted-foreground">
+                              ({Math.ceil((new Date(order.estimated_end_date).getTime() - new Date(order.scheduled_date).getTime()) / (1000 * 60 * 60 * 24)) + 1} days)
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {order.priority && (
                           <Badge className={priorityConfig[order.priority as keyof typeof priorityConfig]?.color || ''}>

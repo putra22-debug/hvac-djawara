@@ -326,9 +326,8 @@ export default function NewOrderPage() {
           location_address: formData.location_address,
           scheduled_date: formData.start_date || null,
           scheduled_time: formData.start_time || null,
-          // TODO: Uncomment after running SQL files:
-          // estimated_end_date: formData.end_date || null,
-          // estimated_end_time: formData.end_time || null,
+          estimated_end_date: formData.end_date || null,
+          estimated_end_time: formData.end_time || null,
           priority: formData.priority,
           // sales_referral_id: formData.sales_referral_id || null,
           // order_source: formData.order_source,
