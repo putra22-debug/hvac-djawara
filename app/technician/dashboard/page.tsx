@@ -126,30 +126,37 @@ export default function TechnicianDashboard() {
         };
       }).filter(order => order && order.id); // Filter out any orders not found
 
-      // Fetch work logs with technical reports
-      const { data: workLogsData, error: logsError } = await supabase
-        .from("technician_work_logs")
-        .select("service_order_id, completed_at")
-        .eq("technician_id", technicianId)
-        .not("completed_at", "is", null);
-
-      console.log("Work logs fetched:", workLogsData?.length || 0, "orders");
-      if (logsError) {
-        console.error("Work logs error:", logsError);
-      }
-
-      // Mark orders that have technical reports
-      if (workLogsData && workLogsData.length > 0) {
-        workLogsData.forEach((log: any) => {
-          const existingOrder = formattedOrders.find(o => o.id === log.service_order_id);
-          if (existingOrder) {
-            existingOrder.has_technical_report = true;
-            console.log("Marked order", existingOrder.order_number, "as having technical report");
-          }
-        });
-      }
-
       setWorkOrders(formattedOrders);
+
+      // Try to fetch work logs with technical reports (don't break if fails)
+      try {
+        const { data: workLogsData, error: logsError } = await supabase
+          .from("technician_work_logs")
+          .select("service_order_id, completed_at")
+          .eq("technician_id", technicianId)
+          .not("completed_at", "is", null);
+
+        console.log("Work logs fetched:", workLogsData?.length || 0, "orders");
+        if (logsError) {
+          console.error("Work logs error:", logsError);
+        }
+
+        // Mark orders that have technical reports
+        if (workLogsData && workLogsData.length > 0) {
+          workLogsData.forEach((log: any) => {
+            const existingOrder = formattedOrders.find(o => o.id === log.service_order_id);
+            if (existingOrder) {
+              existingOrder.has_technical_report = true;
+              console.log("Marked order", existingOrder.order_number, "as having technical report");
+            }
+          });
+          
+          // Re-set orders with updated flags
+          setWorkOrders([...formattedOrders]);
+        }
+      } catch (logsErr) {
+        console.log("Could not fetch work logs, skipping technical report badges:", logsErr);
+      }
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error);
       toast.error("Gagal memuat data dashboard");
