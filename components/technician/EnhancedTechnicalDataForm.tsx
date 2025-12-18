@@ -143,6 +143,81 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         setAssignmentId(null);
       }
       
+      // Load existing work log if exists
+      const { data: existingWorkLog } = await supabase
+        .from('technician_work_logs')
+        .select('*')
+        .eq('service_order_id', orderId)
+        .eq('technician_id', technicianId)
+        .maybeSingle();
+      
+      if (existingWorkLog) {
+        console.log('Found existing work log, loading data...');
+        
+        // Load form data
+        setFormData(prev => ({
+          ...prev,
+          nama_personal: existingWorkLog.nama_personal || prev.nama_personal,
+          nama_instansi: existingWorkLog.nama_instansi || prev.nama_instansi,
+          no_telephone: existingWorkLog.no_telephone || prev.no_telephone,
+          alamat_lokasi: existingWorkLog.alamat_lokasi || prev.alamat_lokasi,
+          jenis_pekerjaan: existingWorkLog.jenis_pekerjaan || prev.jenis_pekerjaan,
+          rincian_pekerjaan: existingWorkLog.rincian_pekerjaan || "",
+          rincian_kerusakan: existingWorkLog.rincian_kerusakan || "",
+          catatan_rekomendasi: existingWorkLog.catatan_rekomendasi || "",
+          start_time: existingWorkLog.start_time ? new Date(existingWorkLog.start_time).toISOString().slice(0, 16) : "",
+          end_time: existingWorkLog.end_time ? new Date(existingWorkLog.end_time).toISOString().slice(0, 16) : "",
+          problem: existingWorkLog.problem || "",
+          tindakan: existingWorkLog.tindakan || "",
+          lama_kerja: existingWorkLog.lama_kerja?.toString() || prev.lama_kerja,
+          jarak_tempuh: existingWorkLog.jarak_tempuh?.toString() || "",
+          lain_lain: existingWorkLog.lain_lain || "",
+          catatan_perbaikan: existingWorkLog.catatan_perbaikan || "",
+        }));
+        
+        // Load signatures
+        setTechnicianName(existingWorkLog.signature_technician_name || techData?.full_name || "");
+        setClientName(existingWorkLog.signature_client_name || orderData.clients?.name || "");
+        setSignatureDate(existingWorkLog.signature_date ? new Date(existingWorkLog.signature_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+        
+        // Load signature images to canvas
+        if (existingWorkLog.signature_technician && sigTechnicianRef.current) {
+          sigTechnicianRef.current.fromDataURL(existingWorkLog.signature_technician);
+        }
+        if (existingWorkLog.signature_client && sigClientRef.current) {
+          sigClientRef.current.fromDataURL(existingWorkLog.signature_client);
+        }
+        
+        // Load photos
+        if (existingWorkLog.documentation_photos && existingWorkLog.documentation_photos.length > 0) {
+          const loadedPhotos = existingWorkLog.documentation_photos.map((url: string, idx: number) => ({
+            file: null as any, // existing photo, no file
+            preview: url,
+            caption: existingWorkLog.photo_captions?.[idx] || "",
+          }));
+          setPhotos(loadedPhotos);
+        }
+        
+        // Load spareparts
+        const { data: sparepartsData } = await supabase
+          .from('work_order_spareparts')
+          .select('*')
+          .eq('work_log_id', existingWorkLog.id);
+        
+        if (sparepartsData && sparepartsData.length > 0) {
+          const loadedSpareparts = sparepartsData.map((sp: any) => ({
+            id: sp.id,
+            name: sp.sparepart_name,
+            quantity: sp.quantity,
+            unit: sp.unit,
+            notes: sp.notes || "",
+          }));
+          setSpareparts(loadedSpareparts);
+        }
+        
+        toast.success('Data teknis yang sudah disimpan berhasil dimuat');
+      }
+      
     } catch (error: any) {
       console.error('Error fetching order data:', error);
       toast.error('Gagal memuat data order');
