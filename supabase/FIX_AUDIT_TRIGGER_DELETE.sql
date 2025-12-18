@@ -74,23 +74,38 @@ BEGIN
     );
   END IF;
 
-  -- Delete child records in specific order
-  -- Use DELETE ... RETURNING to confirm deletions
-  DELETE FROM client_audit_log 
-  WHERE client_id = p_client_id;
-  GET DIAGNOSTICS v_deleted_audit = ROW_COUNT;
+  -- Delete child records - skip if table doesn't exist
+  BEGIN
+    DELETE FROM client_audit_log WHERE client_id = p_client_id;
+    GET DIAGNOSTICS v_deleted_audit = ROW_COUNT;
+  EXCEPTION
+    WHEN undefined_table THEN
+      v_deleted_audit := 0;
+  END;
 
-  DELETE FROM client_portal_invitations 
-  WHERE client_id = p_client_id;
-  GET DIAGNOSTICS v_deleted_invitations = ROW_COUNT;
+  BEGIN
+    DELETE FROM client_portal_invitations WHERE client_id = p_client_id;
+    GET DIAGNOSTICS v_deleted_invitations = ROW_COUNT;
+  EXCEPTION
+    WHEN undefined_table THEN
+      v_deleted_invitations := 0;
+  END;
 
-  DELETE FROM client_properties 
-  WHERE client_id = p_client_id;
-  GET DIAGNOSTICS v_deleted_properties = ROW_COUNT;
+  BEGIN
+    DELETE FROM client_properties WHERE client_id = p_client_id;
+    GET DIAGNOSTICS v_deleted_properties = ROW_COUNT;
+  EXCEPTION
+    WHEN undefined_table THEN
+      v_deleted_properties := 0;
+  END;
 
-  DELETE FROM contract_requests 
-  WHERE client_id = p_client_id;
-  GET DIAGNOSTICS v_deleted_contracts = ROW_COUNT;
+  BEGIN
+    DELETE FROM contract_requests WHERE client_id = p_client_id;
+    GET DIAGNOSTICS v_deleted_contracts = ROW_COUNT;
+  EXCEPTION
+    WHEN undefined_table THEN
+      v_deleted_contracts := 0;
+  END;
 
   -- Finally delete the client itself
   DELETE FROM clients WHERE id = p_client_id;
@@ -142,11 +157,26 @@ BEGIN
         CONTINUE;
       END IF;
 
-      -- Delete child records
-      DELETE FROM client_audit_log WHERE client_id = v_client_id;
-      DELETE FROM client_portal_invitations WHERE client_id = v_client_id;
-      DELETE FROM client_properties WHERE client_id = v_client_id;
-      DELETE FROM contract_requests WHERE client_id = v_client_id;
+      -- Delete child records - skip if table doesn't exist
+      BEGIN
+        DELETE FROM client_audit_log WHERE client_id = v_client_id;
+      EXCEPTION WHEN undefined_table THEN NULL;
+      END;
+
+      BEGIN
+        DELETE FROM client_portal_invitations WHERE client_id = v_client_id;
+      EXCEPTION WHEN undefined_table THEN NULL;
+      END;
+
+      BEGIN
+        DELETE FROM client_properties WHERE client_id = v_client_id;
+      EXCEPTION WHEN undefined_table THEN NULL;
+      END;
+
+      BEGIN
+        DELETE FROM contract_requests WHERE client_id = v_client_id;
+      EXCEPTION WHEN undefined_table THEN NULL;
+      END;
 
       -- Delete client
       DELETE FROM clients WHERE id = v_client_id;
