@@ -101,4 +101,8 @@ GRANT SELECT ON sales_client_acquisition TO authenticated;
 -- View sales performance (all partners)
 -- SELECT * FROM sales_client_acquisition;
 
-RAISE NOTICE '✅ Client referral tracking updated - now supports both active and passive partners';
+-- Final verification
+DO $$ 
+BEGIN
+  RAISE NOTICE '✅ Client referral tracking updated - now supports both active and passive partners';
+END $$;
