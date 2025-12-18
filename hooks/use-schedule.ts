@@ -55,12 +55,10 @@ export function useSchedule(startDate?: Date, endDate?: Date) {
         .from('service_orders')
         .select(`
           *,
-          client:clients!client_id(id, name, phone),
-          technician:profiles!assigned_to(id, full_name)
+          client:clients!client_id(id, name, phone)
         `)
         .eq('tenant_id', profile.active_tenant_id)
         .not('scheduled_date', 'is', null)
-        .in('status', ['scheduled', 'in_progress'])
 
       if (startDate) {
         query = query.gte('scheduled_date', startDate.toISOString().split('T')[0])
@@ -73,6 +71,38 @@ export function useSchedule(startDate?: Date, endDate?: Date) {
       const { data, error: fetchError } = await query
 
       if (fetchError) throw fetchError
+
+      // Fetch technician assignments separately
+      const orderIds = (data || []).map((o: any) => o.id)
+      
+      let techniciansData: any[] = []
+      if (orderIds.length > 0) {
+        const { data: assignments } = await supabase
+          .from('work_order_assignments')
+          .select(`
+            service_order_id,
+            technician:technicians!technician_id(id, full_name)
+          `)
+          .in('service_order_id', orderIds)
+        
+        techniciansData = assignments || []
+      }
+
+      // Create a map of order_id -> technician names
+      const techMap = new Map<string, string>()
+      const techIdMap = new Map<string, string>()
+      techniciansData.forEach((assignment: any) => {
+        const orderId = assignment.service_order_id
+        const techName = assignment.technician?.full_name
+        const techId = assignment.technician?.id
+        
+        if (techMap.has(orderId)) {
+          techMap.set(orderId, `${techMap.get(orderId)}, ${techName}`)
+        } else {
+          techMap.set(orderId, techName || 'Unassigned')
+          techIdMap.set(orderId, techId)
+        }
+      })
 
       // Transform to calendar events
       const calendarEvents: ScheduleEvent[] = (data || []).map((order: any) => {
@@ -88,13 +118,20 @@ export function useSchedule(startDate?: Date, endDate?: Date) {
         const duration = order.estimated_duration || 120 // Default 2 hours
         endDateTime.setMinutes(endDateTime.getMinutes() + duration)
 
+        const technicianName = techMap.get(order.id) || 'Unassigned'
+        const technicianId = techIdMap.get(order.id)
+
         return {
           id: order.id,
-          title: `${order.order_number} - ${order.client?.name || 'Unknown'}`,
+          title: `${order.order_number} - ${order.client?.name || 'Unknown'} (${technicianName})`,
           start: startDateTime,
           end: endDateTime,
-          resource: order,
-          technician: order.technician,
+          resource: {
+            ...order,
+            assigned_technician_names: technicianName,
+            technician: technicianId ? { id: technicianId, full_name: technicianName } : null
+          },
+          technician: technicianId ? { id: technicianId, full_name: technicianName } : undefined,
         }
       })
 
