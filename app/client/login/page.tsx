@@ -151,6 +151,15 @@ export default function ClientLoginPage() {
                 </div>
               </div>
 
+              <div className="flex items-center justify-end">
+                <Link 
+                  href="/client/forgot-password"
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
               <Button
                 type="submit"
                 className="w-full"
