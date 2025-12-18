@@ -361,16 +361,38 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         report_type: 'bast'
       };
       
-      // Upsert work log
-      const { data: workLog, error: workLogError } = await supabase
+      // Check if work log exists
+      const { data: existingLog } = await supabase
         .from("technician_work_logs")
-        .upsert(workLogData, {
-          onConflict: "service_order_id,technician_id"
-        })
-        .select()
-        .single();
+        .select("id")
+        .eq("service_order_id", orderId)
+        .eq("technician_id", technicianId)
+        .maybeSingle();
       
-      if (workLogError) throw workLogError;
+      let workLog;
+      
+      if (existingLog) {
+        // Update existing log
+        const { data, error } = await supabase
+          .from("technician_work_logs")
+          .update(workLogData)
+          .eq("id", existingLog.id)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        workLog = data;
+      } else {
+        // Insert new log
+        const { data, error } = await supabase
+          .from("technician_work_logs")
+          .insert(workLogData)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        workLog = data;
+      }
       
       // Save spareparts
       await saveSpareparts(workLog.id);
@@ -380,7 +402,8 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
       
     } catch (error: any) {
       console.error("Error saving technical data:", error);
-      toast.error("Gagal menyimpan data teknis: " + error.message);
+      const errorMessage = error?.message || error?.error_description || JSON.stringify(error);
+      toast.error("Gagal menyimpan data teknis: " + errorMessage);
     } finally {
       setUploading(false);
     }
