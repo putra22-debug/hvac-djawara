@@ -30,11 +30,32 @@ export default async function PeopleManagementPage() {
     redirect('/dashboard')
   }
 
-  // Fetch role hierarchy for display
+  // Fetch role hierarchy for display (fallback if view doesn't exist)
   const { data: roleHierarchy } = await supabase
     .from('role_hierarchy')
     .select('*')
     .order('sort_order')
+
+  // Create default role hierarchy if view doesn't exist yet
+  const defaultRoleHierarchy = [
+    { role_name: 'owner', category: 'Executive', display_name: 'Pemilik Perusahaan', sort_order: 1 },
+    { role_name: 'direktur', category: 'Executive', display_name: 'Direktur', sort_order: 2 },
+    { role_name: 'manager', category: 'Management', display_name: 'Manager', sort_order: 3 },
+    { role_name: 'supervisor', category: 'Management', display_name: 'Supervisor', sort_order: 4 },
+    { role_name: 'admin_finance', category: 'Management', display_name: 'Admin Finance', sort_order: 5 },
+    { role_name: 'admin_logistic', category: 'Management', display_name: 'Admin Logistik', sort_order: 6 },
+    { role_name: 'admin', category: 'Administrative', display_name: 'Admin', sort_order: 7 },
+    { role_name: 'sales_partner', category: 'Sales & Marketing', display_name: 'Sales Partner', sort_order: 8 },
+    { role_name: 'marketing', category: 'Sales & Marketing', display_name: 'Marketing', sort_order: 9 },
+    { role_name: 'business_dev', category: 'Sales & Marketing', display_name: 'Business Development', sort_order: 10 },
+    { role_name: 'tech_head', category: 'Senior Technical', display_name: 'Kepala Teknisi', sort_order: 11 },
+    { role_name: 'senior_teknisi', category: 'Senior Technical', display_name: 'Teknisi Senior', sort_order: 12 },
+    { role_name: 'technician', category: 'Technical', display_name: 'Teknisi', sort_order: 13 },
+    { role_name: 'teknisi', category: 'Technical', display_name: 'Teknisi', sort_order: 14 },
+    { role_name: 'helper', category: 'Support', display_name: 'Helper', sort_order: 15 },
+    { role_name: 'magang', category: 'Support', display_name: 'Magang/Trainee', sort_order: 16 },
+    { role_name: 'client', category: 'External', display_name: 'Client', sort_order: 17 },
+  ]
 
   // Fetch all team members
   const { data: teamMembers } = await supabase
@@ -67,7 +88,7 @@ export default async function PeopleManagementPage() {
       <PeopleManagementClient 
         tenantId={profile.active_tenant_id}
         initialTeamMembers={teamMembers || []}
-        roleHierarchy={roleHierarchy || []}
+        roleHierarchy={roleHierarchy || defaultRoleHierarchy}
       />
     </div>
   )
