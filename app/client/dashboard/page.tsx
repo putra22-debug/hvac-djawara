@@ -6,7 +6,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Package, FileText, CheckCircle, Calendar, Users } from 'lucide-react'
+import { Package, FileText, CheckCircle, Calendar, Users, Download } from 'lucide-react'
+import Link from 'next/link'
 
 export default async function ClientDashboardPage() {
   const supabase = await createClient()
@@ -56,12 +57,45 @@ export default async function ClientDashboardPage() {
     <div className="p-6">
       {/* Welcome Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {client?.name}!
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Here's an overview of your services and contracts
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Welcome back, {client?.name || 'Client'}!
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Here's an overview of your services and contracts
+            </p>
+          </div>
+          {/* Profile Information Card */}
+          {client && (
+            <Card className="w-64">
+              <CardContent className="pt-4">
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs text-gray-500">Full Name</p>
+                    <p className="text-sm font-medium text-gray-900">{client.name}</p>
+                  </div>
+                  {client.email && (
+                    <div>
+                      <p className="text-xs text-gray-500">Email</p>
+                      <p className="text-sm text-gray-700">{client.email}</p>
+                    </div>
+                  )}
+                  {client.phone && (
+                    <div>
+                      <p className="text-xs text-gray-500">Phone</p>
+                      <p className="text-sm text-gray-700">{client.phone}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-gray-500">Type</p>
+                    <p className="text-sm text-gray-700">{client.client_type?.replace('_', ' ')}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -239,8 +273,8 @@ export default async function ClientDashboardPage() {
                     </div>
                   )}
 
-                  {/* Footer - Created Date */}
-                  <div className="mt-3 pt-3 border-t border-gray-200">
+                  {/* Footer - Created Date & Actions */}
+                  <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
                     <p className="text-xs text-gray-500">
                       Created: {new Date(order.created_at).toLocaleDateString('id-ID', {
                         day: 'numeric',
@@ -250,6 +284,15 @@ export default async function ClientDashboardPage() {
                         minute: '2-digit',
                       })}
                     </p>
+                    {order.status === 'completed' && (
+                      <Link
+                        href={`/client/orders/${order.id}/report`}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download PDF Report
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}
