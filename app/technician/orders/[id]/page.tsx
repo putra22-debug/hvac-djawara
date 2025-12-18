@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
-import TechnicalDataForm from "@/components/technician/TechnicalDataForm";
+import EnhancedTechnicalDataForm from "@/components/technician/EnhancedTechnicalDataForm";
 
 interface WorkOrder {
   id: string;
@@ -385,11 +385,11 @@ export default function WorkOrderDetailPage() {
               </CardContent>
             </Card>
 
-            <TechnicalDataForm
+            <EnhancedTechnicalDataForm
               orderId={orderId}
               technicianId={technicianId}
               onSuccess={() => {
-                toast.success("Data teknis berhasil disimpan!");
+                toast.success("Laporan pekerjaan berhasil disimpan!");
                 router.push("/technician/dashboard");
               }}
             />

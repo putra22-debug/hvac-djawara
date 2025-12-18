@@ -1,14 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Upload, X, FileImage, Loader2 } from "lucide-react";
+import { Upload, X, FileImage, Loader2, Plus, Trash2, PenTool } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import SignatureCanvas from "react-signature-canvas";
+
+interface Sparepart {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  notes: string;
+}
+
+interface PhotoWithCaption {
+  file: File;
+  preview: string;
+  caption: string;
+}
 
 interface TechnicalData {
   // Pengukuran
