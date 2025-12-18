@@ -241,15 +241,60 @@ export default function ClientsPage() {
 }
 ```
 
+## � Client Portal Architecture
+
+### Two-Tier Access System
+
+#### 1. Public Link (Basic Access)
+- **URL Pattern:** `/c/[public_token]`
+- **No login required**
+- **Features:**
+  - View service history
+  - View upcoming maintenance schedules
+  - AC unit statistics
+  - Basic technician information
+- **Use Case:** Quick access for clients without creating account
+
+#### 2. Premium Account (Full Access)
+- **Login URL:** `/client/login`
+- **Registration:** `/client/register?token=[public_token]`
+- **Features:**
+  - All basic features
+  - Rate technician services (1-5 stars)
+  - View detailed work reports with photos
+  - Loyalty points accumulation
+  - Priority customer support
+  - Password reset capability
+- **Authentication:** Email/password with email verification
+
+### Client Flow
+```
+1. Admin creates client → Public token auto-generated
+2. Admin shares public link: /c/[token]
+3. Client views basic info (no login)
+4. Client clicks "Activate Premium"
+5. Client registers with email/password
+6. Email verification sent
+7. Client verifies email
+8. Client logs in → Full premium access
+```
+
 ## 🚀 Deployment
+
+### Current Production
+- **URL:** https://hvac-djawara.vercel.app
+- **Platform:** Vercel
+- **Database:** Supabase PostgreSQL
+- **Auto-deploy:** Enabled on push to `main`
 
 ### Deploy to Vercel
 
 1. **Push to GitHub:**
 ```bash
 git add .
-git commit -m "feat: initialize Next.js frontend MVP"
+git commit -m "feat: your feature description"
 git push origin main
+git push putra22 main  # Backup remote
 ```
 
 2. **Connect to Vercel:**
@@ -263,6 +308,7 @@ git push origin main
 3. **Update Supabase settings:**
    - Go to Supabase Dashboard → Authentication → URL Configuration
    - Add your Vercel URL to allowed redirect URLs
+   - Configure email templates for verification & password reset
 
 ## 📝 Available Scripts
 
@@ -284,14 +330,50 @@ The platform implements **row-level security (RLS)** for multi-tenant isolation:
 
 ## 🎯 Features
 
-- ✅ Authentication (Login/Register)
-- ✅ Multi-tenant architecture
+### ✅ Core System
+- ✅ Authentication (Multi-role: Admin, Owner, Technician, Client)
+- ✅ Multi-tenant architecture with RLS
 - ✅ Owner Dashboard
-- ✅ CRM - Client Management
-- ✅ Service Orders (placeholder)
-- 🚧 Inventory Management (coming soon)
-- 🚧 Finance & Billing (coming soon)
-- 🚧 Technician Job Board (coming soon)
+- ✅ CRM - Client Management (Card/Table view, Bulk actions)
+- ✅ Service Orders Management
+- ✅ Jobs Kanban Board
+- ✅ Technician Management
+- ✅ AC Unit & Property Management
+
+### ✅ Client Portal (Dual-Access System)
+- ✅ **Public Link Access** (No login required)
+  - View service history
+  - View AC unit statistics
+  - View upcoming maintenance
+  - Access via unique token: `/c/[token]`
+  
+- ✅ **Premium Client Access** (Email/Password login)
+  - All public features PLUS:
+  - Rate technician services (1-5 stars)
+  - View detailed work reports
+  - Loyalty points system
+  - Priority support
+  - Premium dashboard at `/client/dashboard`
+
+### ✅ Authentication System
+- ✅ Client registration with email verification
+- ✅ Password reset flow (forgot password)
+- ✅ Auto-redirect for premium clients
+- ✅ Universal login concept (single entry for all roles)
+- ✅ Public token generation for client sharing
+
+### ✅ Maintenance & Reports
+- ✅ Maintenance schedule auto-generation
+- ✅ Service reports with photos
+- ✅ Technician work reports
+- ✅ Client feedback & rating system
+
+### 🚧 Coming Soon
+- 🚧 Inventory Management
+- 🚧 Finance & Billing (Invoicing)
+- 🚧 Push Notifications
+- 🚧 Mobile App (React Native)
+- 🚧 Advanced Analytics
 
 ## 📄 License
 
@@ -478,7 +560,34 @@ Proprietary - Djawara HVAC Platform
 - **Developer**: Soedirboy58
 - **Repository**: [github.com/Soedirboy58/hvac-djawara](https://github.com/Soedirboy58/hvac-djawara)
 
+## 📖 Documentation
+
+### AI Handoff & Continuity
+- **[AI Session Handoff Guide](docs/ai-handoff/AI_SESSION_HANDOFF.md)** - Complete session context for AI chat transitions
+  - Current project status
+  - Architecture decisions
+  - Pending SQL migrations
+  - Known issues & solutions
+  - Quick reference commands
+
+### Feature Guides
+- **[Client Premium Auth Guide](CLIENT_PREMIUM_AUTH_GUIDE.md)** - Dual-access authentication system
+- **[Client Portal Architecture](CLIENT_PORTAL_ARCHITECTURE.md)** - Portal design & implementation
+- **[Database Schema](DATABASE_SCHEMA.md)** - Complete database documentation
+- **[API Endpoints](API_ENDPOINTS.md)** - API reference
+
+### SQL Scripts
+- **[Client Flow Guide](supabase/CLIENT_FLOW_GUIDE.sql)** - Complete SQL reference with examples
+- **[Manual Password Reset](supabase/MANUAL_PASSWORD_RESET.sql)** - Admin password reset procedures
+
 ---
 
-**Status**: MVP Ready ✅  
-**Last Updated**: January 2025
+**Status**: Production Ready ✅  
+**Last Updated**: December 18, 2025
+
+**Current Version Features:**
+- ✅ Multi-role authentication system
+- ✅ Client dual-access portal (public + premium)
+- ✅ Service management with reports & ratings
+- ✅ Maintenance auto-scheduling
+- ✅ Comprehensive admin dashboard
