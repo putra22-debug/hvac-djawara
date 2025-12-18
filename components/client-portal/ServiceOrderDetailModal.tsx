@@ -124,25 +124,18 @@ export function ServiceOrderDetailModal({
         technician_name: orderData.profiles?.full_name || 'Not assigned'
       })
 
-      // Fetch technician report (if exists)
+      // Fetch technician report via RPC (handles both authenticated and public token access)
       const { data: reportData, error: reportError } = await supabase
-        .from('service_reports')
-        .select(`
-          *,
-          profiles:technician_id (
-            full_name
-          )
-        `)
-        .eq('service_order_id', orderId)
-        .single()
-
-      if (!reportError && reportData) {
-        setReport({
-          ...reportData,
-          technician_name: reportData.profiles?.full_name || 'Unknown'
+        .rpc('get_service_report_by_order', {
+          p_order_id: orderId,
+          p_client_token: null  // Will be set from URL param in actual implementation
         })
-        setRating(reportData.technician_rating || 0)
-        setFeedback(reportData.client_feedback || '')
+
+      if (!reportError && reportData && reportData.length > 0) {
+        const report = reportData[0]
+        setReport(report)
+        setRating(report.technician_rating || 0)
+        setFeedback(report.client_feedback || '')
       }
 
     } catch (err) {
@@ -163,22 +156,27 @@ export function ServiceOrderDetailModal({
     try {
       setSubmitting(true)
 
-      const { error } = await supabase
-        .from('service_reports')
-        .update({
-          technician_rating: rating,
-          client_feedback: feedback.trim() || null,
-          rated_at: new Date().toISOString()
+      const { data, error } = await supabase
+        .rpc('submit_service_rating', {
+          p_order_id: orderId,
+          p_rating: rating,
+          p_feedback: feedback.trim() || null,
+          p_client_token: null  // Will be set from URL param in actual implementation
         })
-        .eq('id', report.id)
 
       if (error) throw error
 
+      const result = data as { success: boolean; error?: string; message?: string }
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to submit rating')
+      }
+
       toast.success('Rating submitted successfully!')
       fetchOrderDetails() // Refresh data
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting rating:', err)
-      toast.error('Failed to submit rating')
+      toast.error(err.message || 'Failed to submit rating')
     } finally {
       setSubmitting(false)
     }
