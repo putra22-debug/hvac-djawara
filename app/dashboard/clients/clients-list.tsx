@@ -123,54 +123,25 @@ export function ClientsList({ tenantId }: ClientsListProps) {
     const supabase = createClient()
     
     try {
-      // Step 1: Check for service orders
-      const { data: orders } = await supabase
-        .from('service_orders')
-        .select('id')
-        .eq('client_id', clientId)
-        .limit(1)
-
-      if (orders && orders.length > 0) {
-        toast.error('Cannot delete: Client has existing service orders')
-        setDeleting(false)
-        setDeleteDialogOpen(false)
-        setClientToDelete(null)
-        return
-      }
-
-      // Step 2: Delete ALL child records manually in correct order
-      // Delete from tables that might exist
-      const childTables = [
-        'client_audit_log',
-        'client_portal_invitations', 
-        'client_properties',
-        'contract_requests'
-      ]
-
-      for (const table of childTables) {
-        try {
-          await supabase.from(table).delete().eq('client_id', clientId)
-        } catch (err) {
-          // Ignore if table doesn't exist or no records
-          console.log(`Skipped ${table}:`, err)
-        }
-      }
-
-      // Step 3: Now delete the client
-      const { error } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', clientId)
+      // Call database function to handle delete with proper transaction
+      const { data, error } = await supabase
+        .rpc('delete_client_safe', { p_client_id: clientId })
 
       if (error) throw error
 
-      toast.success('Client deleted successfully')
-      await fetchClients()
-      setSelectedClients(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(clientId)
-        return newSet
-      })
+      const result = data as { success: boolean; error?: string; message?: string }
+
+      if (!result.success) {
+        toast.error(result.error || 'Failed to delete client')
+      } else {
+        toast.success('Client deleted successfully')
+        await fetchClients()
+        setSelectedClients(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(clientId)
+          return newSet
+        })
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete client')
       console.error('Delete error:', error)
@@ -185,70 +156,27 @@ export function ClientsList({ tenantId }: ClientsListProps) {
     setDeleting(true)
     const supabase = createClient()
     const clientIds = Array.from(selectedClients)
-    let successCount = 0
-    let failCount = 0
     
     try {
-      // Delete clients one by one with proper child cleanup
-      for (const clientId of clientIds) {
-        try {
-          // Check for service orders
-          const { data: orders } = await supabase
-            .from('service_orders')
-            .select('id')
-            .eq('client_id', clientId)
-            .limit(1)
+      // Call database function for bulk delete
+      const { data, error } = await supabase
+        .rpc('delete_clients_bulk', { p_client_ids: clientIds })
 
-          if (orders && orders.length > 0) {
-            failCount++
-            continue
-          }
+      if (error) throw error
 
-          // Delete child records
-          const childTables = [
-            'client_audit_log',
-            'client_portal_invitations', 
-            'client_properties',
-            'contract_requests'
-          ]
+      const result = data as { success_count: number; fail_count: number; failed_clients: any[] }
 
-          for (const table of childTables) {
-            try {
-              await supabase.from(table).delete().eq('client_id', clientId)
-            } catch (err) {
-              // Ignore errors
-            }
-          }
-
-          // Delete client
-          const { error } = await supabase
-            .from('clients')
-            .delete()
-            .eq('id', clientId)
-
-          if (error) {
-            failCount++
-            console.error(`Failed to delete client ${clientId}:`, error)
-          } else {
-            successCount++
-          }
-        } catch (err) {
-          failCount++
-          console.error(`Error processing client ${clientId}:`, err)
-        }
-      }
-
-      if (successCount > 0) {
-        toast.success(`${successCount} client(s) deleted successfully`)
+      if (result.success_count > 0) {
+        toast.success(`${result.success_count} client(s) deleted successfully`)
         await fetchClients()
         setSelectedClients(new Set())
       }
 
-      if (failCount > 0) {
-        toast.error(`${failCount} client(s) could not be deleted (may have service orders)`)
+      if (result.fail_count > 0) {
+        toast.error(`${result.fail_count} client(s) could not be deleted (may have service orders)`)
       }
     } catch (error: any) {
-      toast.error('Failed to delete clients')
+      toast.error(error.message || 'Failed to delete clients')
       console.error('Bulk delete error:', error)
     }
     
