@@ -97,7 +97,7 @@ export function ClientDashboard({ clientId }: ClientDashboardProps) {
 
       const { data: ordersData, count, error: ordersError } = await supabase
         .from('service_orders')
-        .select('id, order_number, service_type, job_type, status, scheduled_date, created_at', { count: 'exact' })
+        .select('id, order_number, service_title, job_type, status, scheduled_date, created_at', { count: 'exact' })
         .eq('client_id', clientId)
         .order('created_at', { ascending: false })
         .range(from, to)
@@ -108,11 +108,11 @@ export function ClientDashboard({ clientId }: ClientDashboardProps) {
 
       console.log('Orders fetched:', ordersData?.length || 0, 'Total count:', count)
 
-      // Transform data to match interface (map order_number to order_code, service_type to order_type)
+      // Transform data to match interface (map order_number to order_code, service_title to order_type)
       const transformedOrders = (ordersData || []).map(order => ({
         ...order,
         order_code: order.order_number,
-        order_type: order.service_type || order.job_type || 'maintenance'
+        order_type: order.service_title || order.job_type || 'maintenance'
       }))
 
       setOrders(transformedOrders)
