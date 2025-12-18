@@ -1,8 +1,9 @@
 'use client'
 
-import { ArrowLeft, Calendar, MapPin, User, Phone, Mail, Clock, FileText, AlertCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Calendar, MapPin, User, Phone, Mail, Clock, FileText, AlertCircle, Loader2, Edit, Users, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -79,16 +80,50 @@ function OrderDetailContent() {
   const handleAssignTechnician = async () => {
     if (!selectedTechnician || !order) return
 
-    const success = await updateOrder(order.id, { 
-      assigned_to: selectedTechnician,
-      status: order.status === 'pending' ? 'scheduled' : order.status,
-    })
-    
-    if (success) {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        toast.error('Not authenticated')
+        return
+      }
+
+      // Check if technician already assigned
+      const { data: existing } = await supabase
+        .from('work_order_assignments')
+        .select('id')
+        .eq('service_order_id', order.id)
+        .eq('technician_id', selectedTechnician)
+        .single()
+
+      if (existing) {
+        toast.error('Teknisi sudah di-assign ke order ini')
+        return
+      }
+
+      // Insert new assignment
+      const { error: assignError } = await supabase
+        .from('work_order_assignments')
+        .insert({
+          service_order_id: order.id,
+          technician_id: selectedTechnician,
+          assigned_by: user.id,
+          status: 'assigned',
+        })
+
+      if (assignError) throw assignError
+
+      // Update order status if still pending
+      if (order.status === 'pending' || order.status === 'listing') {
+        await updateOrder(order.id, { status: 'scheduled' })
+      }
+
       toast.success('Technician assigned successfully')
       setSelectedTechnician('')
       refetch()
-    } else {
+    } catch (err) {
+      console.error('Error assigning technician:', err)
       toast.error('Failed to assign technician')
     }
   }
@@ -147,9 +182,17 @@ function OrderDetailContent() {
             </div>
           </div>
         </div>
-        <Badge className={statusConfig[order.status]?.color || 'bg-gray-100 text-gray-800'}>
-          {statusConfig[order.status]?.label || order.status}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge className={statusConfig[order.status]?.color || 'bg-gray-100 text-gray-800'}>
+            {statusConfig[order.status]?.label || order.status}
+          </Badge>
+          <Link href={`/dashboard/orders/${order.id}/edit`}>
+            <Button variant="outline" size="sm">
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Order
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -213,61 +256,152 @@ function OrderDetailContent() {
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Estimated Duration</p>
                   <p className="text-sm">{order.estimated_duration} minutes</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Timeline & Dates */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Timeline</CardTitle>
+                </div>Project Timeline</CardTitle>
+              <CardDescription>Track order progress and important dates</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-sm text-gray-500">Requested Date</p>
-                  <p className="text-sm font-medium">{formatDate(order.requested_date)}</p>
-                </div>
-              </div>
-              {order.scheduled_date && (
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-gray-400" />
+            <CardContent>
+              <div className="relative space-y-4 pl-6">
+                {/* Timeline line */}
+                <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-gray-200"></div>
+
+                {/* Created */}
+                <div className="relative">
+                  <div className="absolute -left-6 top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white"></div>
                   <div>
-                    <p className="text-sm text-gray-500">Scheduled</p>
-                    <p className="text-sm font-medium">
-                      {formatDate(order.scheduled_date)}
-                      {order.scheduled_time && ` at ${order.scheduled_time}`}
-                    </p>
+                    <p className="text-sm font-medium text-blue-900">Order Created</p>
+                    <p className="text-xs text-gray-500">{formatDateTime(order.created_at)}</p>
+                    {order.creator?.full_name && (
+                      <p className="text-xs text-gray-500 mt-1">by {order.creator.full_name}</p>
+                    )}
                   </div>
                 </div>
-              )}
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-sm text-gray-500">Created</p>
-                  <p className="text-sm">{formatDateTime(order.created_at)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-sm text-gray-500">Last Updated</p>
-                  <p className="text-sm">{formatDateTime(order.updated_at)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Notes */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Notes</CardTitle>
+                {/* Requested Date */}
+                {order.requested_date && (
+                  <div className="relative">
+                    <div className="absolute -left-6 top-1 w-4 h-4 rounded-full bg-yellow-500 border-4 border-white"></div>
+                    <div>
+                      <p className="text-sm font-medium text-yellow-900">Requested Service Date</p>
+                      <p className="text-xs text-gray-500">{formatDate(order.requested_date)}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Scheduled */}
+                {order.scheduled_date && (
+                  <div className="relative">
+                    <div className="absolute -left-6 top-1 w-4 h-4 rounded-full bg-purple-500 border-4 border-white"></div>
+                    <div>
+                      <p className="text-sm font-medium text-purple-900">Scheduled Start</p>
+                      <p className="text-xs text-gray-500">
+                        📅 {formatDate(order.scheduled_date)}
+                        {order.scheduled_time && ` • ⏰ ${order.scheduled_time}`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Estimated End */}
+                {order.estimated_end_date && (
+                  <div className="relative">
+                    <div className="absolute -left-6 top-1 w-4 h-4 rounded-full bg-orange-500 border-4 border-white"></div>
+                    <div>
+                      <p className="text-sm font-medium text-orange-900">Estimated Completion</p>
+                      <p className="text-xs text-gray-500">
+                        📅 {formatDate(order.estimated_end_date)}
+                        {order.estimated_end_time && ` • ⏰ ${order.estimated_end_time}`}
+                      </p>
+                      {order.scheduled_date && order.estimated_end_date && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Duration: {Math.ceil((new Date(order.estimated_end_date).getTime() - new Date(order.scheduled_date).getTime()) / (1000 * 60 * 60 * 24)) + 1} day(s)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Status indicator */}
+                {order.status === 'completed' && (
+                  <div className="relative">
+                    <div className="absolute -left-6 top-1 w-4 h-4 rounded-full bg-green-500 border-4 border-white flex items-center justify-center">
+                      <CheckCircle2 className="w-3 h-3 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-green-900">Completed</p>
+                      <p className="text-xs text-gray-500">{formatDateTime(order.updated_at)}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Last Updated */}
+                <div className="relative">
+                  <div className="absolute -left-6 top-1 w-4 h-4 rounded-full bg-gray-400 border-4 border-white"></div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Last Updated</p>
+                    <p className="text-xs t flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Assign Technician
+              </CardTitle>
+              <CardDescription>
+                {order.assigned_technician_names ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-sm font-medium">Currently assigned:</span>
+                    <Badge variant="outline" className="bg-blue-50">
+                      {order.assigned_technician_names}
+                      {order.technician_count && order.technician_count > 1 && (
+                        <span className="ml-1">({order.technician_count})</span>
+                      )}
+                    </Badge>
+                  </div>
+                ) : (
+                  <span className="text-amber-600">⚠️ No technician assigned yet</span>
+                )}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {order.notes && (
-                <div className="p-3 bg-gray-50 rounded-md">
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">
+                  Select a technician to add to this order:
+                </p>
+                <Select value={selectedTechnician} onValueChange={setSelectedTechnician}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select technician" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {technicians.length > 0 ? (
+                      technicians.map((tech) => (
+                        <SelectItem key={tech.id} value={tech.id}>
+                          👤 {tech.full_name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>
+                        No technicians available
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                onClick={handleAssignTechnician} 
+                disabled={!selectedTechnician || updating}
+                className="w-full"
+              >
+                {updating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-4 h-4 mr-2" />
+                    Assign Technician
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-gray-500">
+                💡 Tip: You can assign multiple technicians by using "Edit Order" button above
+              </plassName="p-3 bg-gray-50 rounded-md">
                   <p className="text-sm whitespace-pre-wrap">{order.notes}</p>
                 </div>
               )}

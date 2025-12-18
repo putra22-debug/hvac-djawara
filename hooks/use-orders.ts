@@ -243,12 +243,12 @@ export function useOrder(orderId: string | null) {
       setLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await supabase
+      // Fetch order with client and creator info
+      const { data: orderData, error: fetchError } = await supabase
         .from('service_orders')
         .select(`
           *,
           client:clients!client_id(id, name, phone, email, address),
-          technician:profiles!assigned_to(id, full_name),
           creator:profiles!created_by(id, full_name)
         `)
         .eq('id', orderId)
@@ -256,7 +256,38 @@ export function useOrder(orderId: string | null) {
 
       if (fetchError) throw fetchError
 
-      setOrder(data)
+      // Fetch technician assignments separately
+      const { data: assignments } = await supabase
+        .from('work_order_assignments')
+        .select(`
+          technician:technicians!technician_id(id, full_name)
+        `)
+        .eq('service_order_id', orderId)
+
+      // Aggregate technician names
+      let technicianNames = 'Unassigned'
+      let technicianCount = 0
+      let firstTechnician = null
+
+      if (assignments && assignments.length > 0) {
+        const techNames = assignments
+          .map((a: any) => a.technician?.full_name)
+          .filter(Boolean)
+        
+        technicianNames = techNames.join(', ')
+        technicianCount = techNames.length
+        firstTechnician = assignments[0]?.technician || null
+      }
+
+      // Merge data
+      const enrichedOrder = {
+        ...orderData,
+        assigned_technician_names: technicianNames,
+        technician_count: technicianCount,
+        technician: firstTechnician, // For backward compatibility
+      }
+
+      setOrder(enrichedOrder)
     } catch (err) {
       console.error('Error fetching order:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch order')
