@@ -33,8 +33,11 @@ BEGIN
   END IF;
 END $$;
 
--- Step 6: Update sales_client_acquisition view to include both types
-CREATE OR REPLACE VIEW sales_client_acquisition AS
+-- Step 6: Drop existing view first (to change column types)
+DROP VIEW IF EXISTS sales_client_acquisition;
+
+-- Step 7: Create updated view to include both types
+CREATE VIEW sales_client_acquisition AS
 WITH active_referrals AS (
   -- Active partners with user accounts
   SELECT 
