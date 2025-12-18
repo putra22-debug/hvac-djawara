@@ -89,9 +89,9 @@ export default function TechnicianDashboard() {
       // Fetch assigned work orders
       const { data: assignmentsData, error: assignError } = await supabase
         .from("work_order_assignments")
-        .select("id, assignment_status, assigned_at, service_order_id")
+        .select("id, status, assigned_at, service_order_id")
         .eq("technician_id", techData.id)
-        .in("assignment_status", ["assigned", "accepted", "in_progress"])
+        .in("status", ["assigned", "accepted", "in_progress"])
         .order("assigned_at", { ascending: false });
 
       if (assignError) {
@@ -121,7 +121,7 @@ export default function TechnicianDashboard() {
         const order = ordersData.find(o => o.id === assignment.service_order_id);
         return {
           ...order,
-          assignment_status: assignment.assignment_status,
+          assignment_status: assignment.status, // Use 'status' from work_order_assignments
           assigned_at: assignment.assigned_at,
         };
       }).filter(order => order.id); // Filter out any orders not found
@@ -170,7 +170,7 @@ export default function TechnicianDashboard() {
   }
 
   const pendingOrders = workOrders.filter((o) => o.assignment_status === "assigned");
-  const inProgressOrders = workOrders.filter((o) => o.assignment_status === "in_progress");
+  const inProgressOrders = workOrders.filter((o) => o.assignment_status === "in_progress" || o.assignment_status === "accepted");
 
   return (
     <div className="min-h-screen bg-gray-50">
