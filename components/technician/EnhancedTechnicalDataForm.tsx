@@ -387,33 +387,41 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         .eq("technician_id", technicianId)
         .maybeSingle();
       
-      let workLog;
+      let workLogId;
       
       if (existingLog) {
         // Update existing log
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("technician_work_logs")
           .update(workLogData)
-          .eq("id", existingLog.id)
-          .select()
-          .single();
+          .eq("id", existingLog.id);
         
-        if (error) throw error;
-        workLog = data;
+        if (error) {
+          console.error("Update error:", error);
+          throw error;
+        }
+        workLogId = existingLog.id;
       } else {
         // Insert new log
         const { data, error } = await supabase
           .from("technician_work_logs")
-          .insert(workLogData)
-          .select()
+          .insert([workLogData])
+          .select("id")
           .single();
         
-        if (error) throw error;
-        workLog = data;
+        if (error) {
+          console.error("Insert error:", error);
+          throw error;
+        }
+        workLogId = data?.id;
+      }
+      
+      if (!workLogId) {
+        throw new Error("Failed to get work log ID");
       }
       
       // Save spareparts
-      await saveSpareparts(workLog.id);
+      await saveSpareparts(workLogId);
       
       toast.success("Data teknis berhasil disimpan!");
       onSuccess?.();
