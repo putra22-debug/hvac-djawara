@@ -26,7 +26,8 @@ import {
   Crown,
   Building,
   Wrench,
-  TrendingUp
+  TrendingUp,
+  Download
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -363,8 +364,8 @@ export default async function PublicClientPage({ params }: PublicClientPageProps
                           </div>
                           {getStatusBadge(order.status)}
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-1 text-sm text-gray-600">
                             <Calendar className="w-4 h-4" />
                             {order.completed_date 
                               ? new Date(order.completed_date).toLocaleDateString('id-ID')
@@ -372,6 +373,14 @@ export default async function PublicClientPage({ params }: PublicClientPageProps
                               ? new Date(order.scheduled_date).toLocaleDateString('id-ID')
                               : 'Not scheduled'}
                           </div>
+                          {order.status === 'completed' && (
+                            <Link href={`/client/orders/${order.id}/report`} className="flex-shrink-0">
+                              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                                <Download className="w-4 h-4 mr-2" />
+                                Download PDF Report
+                              </Button>
+                            </Link>
+                          )}
                         </div>
                       </div>
                     ))}
