@@ -55,47 +55,33 @@ export default async function ClientDashboardPage() {
 
   return (
     <div className="p-6">
-      {/* Welcome Section - Updated v2.1 */}
+      {/* TESTING - VERSION 3.0 - IF YOU SEE THIS, DEPLOYMENT IS WORKING */}
+      <div className="bg-red-500 text-white p-4 mb-4 rounded-lg font-bold text-center">
+        🚨 TEST MODE - VERSION 3.0 - DEPLOYMENT WORKING! 🚨
+      </div>
+
+      {/* Welcome Section with Client Name */}
       <div className="mb-8">
         <div className="flex items-start justify-between gap-6">
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-900">
-              Welcome back, {client?.name || 'Valued Client'}!
+              Welcome, {client?.name || 'Guest'}!
             </h1>
             <p className="text-gray-600 mt-1">
               Here's an overview of your services and contracts
             </p>
-            <p className="text-xs text-blue-600 mt-2">✓ Profile card should appear on the right →</p>
-          </div>
-          {/* Profile Information Card */}
-          {client && (
-            <Card className="w-64">
-              <CardContent className="pt-4">
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-xs text-gray-500">Full Name</p>
-                    <p className="text-sm font-medium text-gray-900">{client.name}</p>
-                  </div>
-                  {client.email && (
-                    <div>
-                      <p className="text-xs text-gray-500">Email</p>
-                      <p className="text-sm text-gray-700">{client.email}</p>
-                    </div>
-                  )}
-                  {client.phone && (
-                    <div>
-                      <p className="text-xs text-gray-500">Phone</p>
-                      <p className="text-sm text-gray-700">{client.phone}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-xs text-gray-500">Type</p>
-                    <p className="text-sm text-gray-700">{client.client_type?.replace('_', ' ')}</p>
-                  </div>
+            {client && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-500">
+                <p className="font-semibold text-blue-900 mb-2">Your Profile:</p>
+                <div className="space-y-1 text-sm">
+                  <p><span className="font-medium">Name:</span> {client.name}</p>
+                  {client.email && <p><span className="font-medium">Email:</span> {client.email}</p>}
+                  {client.phone && <p><span className="font-medium">Phone:</span> {client.phone}</p>}
+                  {client.client_type && <p><span className="font-medium">Type:</span> {client.client_type.replace('_', ' ')}</p>}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
