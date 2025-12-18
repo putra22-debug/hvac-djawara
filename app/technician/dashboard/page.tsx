@@ -126,6 +126,44 @@ export default function TechnicianDashboard() {
         };
       }).filter(order => order && order.id); // Filter out any orders not found
 
+      // Fetch work logs with technical reports (completed work)
+      const { data: workLogsData } = await supabase
+        .from("technician_work_logs")
+        .select(`
+          id,
+          service_order_id,
+          completed_at,
+          service_orders (
+            id,
+            order_number,
+            service_title,
+            location_address,
+            scheduled_date,
+            status
+          )
+        `)
+        .eq("technician_id", technicianId)
+        .not("completed_at", "is", null)
+        .order("completed_at", { ascending: false })
+        .limit(10);
+
+      // Add work logs to orders if not already in assignments
+      if (workLogsData && workLogsData.length > 0) {
+        workLogsData.forEach((log: any) => {
+          const existsInOrders = formattedOrders.find(o => o.id === log.service_order_id);
+          if (!existsInOrders && log.service_orders) {
+            formattedOrders.push({
+              ...log.service_orders,
+              assignment_status: "completed",
+              completed_at: log.completed_at,
+              has_technical_report: true,
+            });
+          } else if (existsInOrders) {
+            existsInOrders.has_technical_report = true;
+          }
+        });
+      }
+
       setWorkOrders(formattedOrders);
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error);
@@ -324,9 +362,14 @@ export default function TechnicianDashboard() {
                       </div>
 
                       <div className="mt-3">
-                        {order.status === "completed" && (
-                          <Badge className="bg-green-100 text-green-800">
-                            ✓ Selesai - Lengkapi Data Teknis
+                        {order.has_technical_report && (
+                          <Badge className="bg-green-600 text-white">
+                            ✓ Laporan Teknis Tersimpan
+                          </Badge>
+                        )}
+                        {order.status === "completed" && !order.has_technical_report && (
+                          <Badge className="bg-orange-100 text-orange-800">
+                            ⚠ Selesai - Lengkapi Data Teknis
                           </Badge>
                         )}
                         {order.assignment_status === "assigned" && order.status !== "completed" && (
