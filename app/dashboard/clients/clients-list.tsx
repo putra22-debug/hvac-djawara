@@ -122,15 +122,51 @@ export function ClientsList({ tenantId }: ClientsListProps) {
     setDeleting(true)
     const supabase = createClient()
     
-    const { error } = await supabase
-      .from('clients')
-      .delete()
-      .eq('id', clientId)
+    try {
+      // Step 1: Delete related records first
+      // Delete client audit logs
+      await supabase
+        .from('client_audit_log')
+        .delete()
+        .eq('client_id', clientId)
 
-    if (error) {
-      toast.error('Failed to delete client')
-      console.error('Delete error:', error)
-    } else {
+      // Delete client portal invitations
+      await supabase
+        .from('client_portal_invitations')
+        .delete()
+        .eq('client_id', clientId)
+
+      // Delete client properties
+      await supabase
+        .from('client_properties')
+        .delete()
+        .eq('client_id', clientId)
+
+      // Check if client has service orders
+      const { data: orders, error: ordersError } = await supabase
+        .from('service_orders')
+        .select('id')
+        .eq('client_id', clientId)
+        .limit(1)
+
+      if (ordersError) throw ordersError
+
+      if (orders && orders.length > 0) {
+        toast.error('Cannot delete client: has existing service orders')
+        setDeleting(false)
+        setDeleteDialogOpen(false)
+        setClientToDelete(null)
+        return
+      }
+
+      // Step 2: Delete the client
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clientId)
+
+      if (error) throw error
+
       toast.success('Client deleted successfully')
       await fetchClients()
       setSelectedClients(prev => {
@@ -138,6 +174,9 @@ export function ClientsList({ tenantId }: ClientsListProps) {
         newSet.delete(clientId)
         return newSet
       })
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete client')
+      console.error('Delete error:', error)
     }
     
     setDeleting(false)
@@ -148,19 +187,55 @@ export function ClientsList({ tenantId }: ClientsListProps) {
   const handleBulkDelete = async () => {
     setDeleting(true)
     const supabase = createClient()
+    const clientIds = Array.from(selectedClients)
     
-    const { error } = await supabase
-      .from('clients')
-      .delete()
-      .in('id', Array.from(selectedClients))
+    try {
+      // Step 1: Delete related records first
+      await supabase
+        .from('client_audit_log')
+        .delete()
+        .in('client_id', clientIds)
 
-    if (error) {
-      toast.error('Failed to delete clients')
-      console.error('Bulk delete error:', error)
-    } else {
+      await supabase
+        .from('client_portal_invitations')
+        .delete()
+        .in('client_id', clientIds)
+
+      await supabase
+        .from('client_properties')
+        .delete()
+        .in('client_id', clientIds)
+
+      // Check if any client has service orders
+      const { data: orders, error: ordersError } = await supabase
+        .from('service_orders')
+        .select('client_id')
+        .in('client_id', clientIds)
+        .limit(1)
+
+      if (ordersError) throw ordersError
+
+      if (orders && orders.length > 0) {
+        toast.error('Cannot delete: some clients have existing service orders')
+        setDeleting(false)
+        setBulkDeleteDialogOpen(false)
+        return
+      }
+
+      // Step 2: Delete the clients
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .in('id', clientIds)
+
+      if (error) throw error
+
       toast.success(`${selectedClients.size} client(s) deleted successfully`)
       await fetchClients()
       setSelectedClients(new Set())
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete clients')
+      console.error('Bulk delete error:', error)
     }
     
     setDeleting(false)
