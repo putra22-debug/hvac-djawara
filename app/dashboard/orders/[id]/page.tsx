@@ -35,13 +35,7 @@ function OrderDetailContent() {
   const router = useRouter()
   const orderId = params.id as string
   
-  const { order, loading, error, refetch } = useOrder(orderId)
-  const { updateOrder, loading: updating } = useUpdateOrder()
-  const { technicians } = useTechnicians()
-  
-  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('')
-  const [selectedTechnician, setSelectedTechnician] = useState<string>('')
-  const [notes, setNotes] = useState('')
+  const { order, loading, error } = useOrder(orderId)
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-'
@@ -354,103 +348,64 @@ function OrderDetailContent() {
           </Card>
         </div>
 
-        {/* Sidebar Actions */}
+        {/* Sidebar - Read Only Info */}
         <div className="space-y-6">
-          {/* Assign Technician */}
+          {/* Assigned Technician Info */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                Assign Technician
+                Assigned Technician
               </CardTitle>
-              <CardDescription>
-                {order.assigned_technician_names ? (
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-sm font-medium">Currently assigned:</span>
-                    <Badge variant="outline" className="bg-blue-50">
+            </CardHeader>
+            <CardContent>
+              {order.assigned_technician_names ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
                       {order.assigned_technician_names}
                       {order.technician_count && order.technician_count > 1 && (
-                        <span className="ml-1">({order.technician_count})</span>
+                        <span className="ml-1">({order.technician_count} technicians)</span>
                       )}
                     </Badge>
                   </div>
-                ) : (
-                  <span className="text-amber-600">⚠️ No technician assigned yet</span>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">
-                  Select a technician to add to this order:
+                  <p className="text-xs text-gray-500">
+                    👤 Currently assigned to this order
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  <p className="text-sm text-amber-800">No technician assigned yet</p>
+                </div>
+              )}
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs text-gray-500 text-center">
+                  💡 To assign or change technicians, click <strong>"Edit Order"</strong> button above
                 </p>
-                <Select value={selectedTechnician} onValueChange={setSelectedTechnician}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select technician" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {technicians.length > 0 ? (
-                      technicians.map((tech) => (
-                        <SelectItem key={tech.id} value={tech.id}>
-                          👤 {tech.full_name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="none" disabled>
-                        No technicians available
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
               </div>
-              <Button 
-                onClick={handleAssignTechnician} 
-                disabled={!selectedTechnician || updating}
-                className="w-full"
-              >
-                {updating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Assigning...
-                  </>
-                ) : (
-                  <>
-                    <Users className="w-4 h-4 mr-2" />
-                    Assign Technician
-                  </>
-                )}
-              </Button>
-              <p className="text-xs text-gray-500">
-                💡 Tip: You can assign multiple technicians by using "Edit Order" button above
-              </p>
             </CardContent>
           </Card>
 
-          {/* Notes Section */}
+          {/* Notes Section - Read Only */}
           <Card>
             <CardHeader>
               <CardTitle>Notes</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {order.notes && (
+            <CardContent>
+              {order.notes ? (
                 <div className="p-3 bg-gray-50 rounded-md">
-                  <p className="text-sm whitespace-pre-wrap">{order.notes}</p>
+                  <p className="text-sm whitespace-pre-wrap text-gray-700">{order.notes}</p>
+                </div>
+              ) : (
+                <div className="p-3 bg-gray-50 rounded-md text-center">
+                  <p className="text-sm text-gray-500">No notes added yet</p>
                 </div>
               )}
-              <div className="space-y-2">
-                <Textarea
-                  placeholder="Add a note..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                />
-                <Button 
-                  onClick={handleAddNote} 
-                  disabled={!notes.trim() || updating}
-                  size="sm"
-                >
-                  Add Note
-                </Button>
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs text-gray-500 text-center">
+                  💡 To add or edit notes, click <strong>"Edit Order"</strong> button above
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -487,31 +442,31 @@ function OrderDetailContent() {
             </CardContent>
           </Card>
 
-          {/* Update Status */}
+          {/* Order Status Info */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Update Status</CardTitle>
+              <CardTitle className="text-lg">Order Status</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Select value={selectedStatus} onValueChange={(val) => setSelectedStatus(val as OrderStatus)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select new status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button 
-                onClick={handleUpdateStatus} 
-                disabled={!selectedStatus || updating}
-                className="w-full"
-              >
-                Update Status
-              </Button>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                <span className="text-sm text-gray-600">Current Status:</span>
+                <Badge className={statusConfig[order.status]?.color || 'bg-gray-100 text-gray-800'}>
+                  {statusConfig[order.status]?.label || order.status}
+                </Badge>
+              </div>
+              {order.priority && (
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                  <span className="text-sm text-gray-600">Priority:</span>
+                  <Badge variant="outline" className="capitalize">
+                    {order.priority}
+                  </Badge>
+                </div>
+              )}
+              <div className="pt-3 border-t">
+                <p className="text-xs text-gray-500 text-center">
+                  💡 To change status, click <strong>"Edit Order"</strong> button above
+                </p>
+              </div>
             </CardContent>
           </Card>
 
