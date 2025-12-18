@@ -109,16 +109,30 @@ export function PeopleManagementClient({
 
   // Fetch all partner records (both activated and not)
   const fetchPartnerRecords = async () => {
-    const { data } = await supabase
-      .from('team_invitations')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .in('role', ['sales_partner', 'marketing', 'business_dev'])
-      .neq('status', 'cancelled')
-      .order('created_at', { ascending: false })
-    
-    if (data) {
-      setPartnerRecords(data)
+    try {
+      console.log('Fetching partner records for tenant:', tenantId)
+      
+      const { data, error } = await supabase
+        .from('team_invitations')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .in('role', ['sales_partner', 'marketing', 'business_dev'])
+        .neq('status', 'cancelled')
+        .order('created_at', { ascending: false })
+      
+      console.log('Partner records query result:', { data, error })
+      
+      if (error) {
+        console.error('Error fetching partner records:', error)
+        return
+      }
+      
+      if (data) {
+        console.log('Setting partner records:', data)
+        setPartnerRecords(data)
+      }
+    } catch (error) {
+      console.error('Exception in fetchPartnerRecords:', error)
     }
   }
 
