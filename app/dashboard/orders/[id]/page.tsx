@@ -35,7 +35,13 @@ function OrderDetailContent() {
   const router = useRouter()
   const orderId = params.id as string
   
-  const { order, loading, error } = useOrder(orderId)
+  const { order, loading, error, refetch } = useOrder(orderId)
+  const { updateOrder } = useUpdateOrder()
+  const { technicians } = useTechnicians()
+  
+  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('')
+  const [selectedTechnician, setSelectedTechnician] = useState('')
+  const [notes, setNotes] = useState('')
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-'
