@@ -128,17 +128,19 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         setTechnicianName(techData.full_name);
       }
       
-      // Fetch assignment_id
-      const { data: assignmentData } = await supabase
+      // Fetch assignment_id - don't filter by status since order might be completed
+      const { data: assignmentData, error: assignmentError } = await supabase
         .from('technician_assignments')
         .select('id')
         .eq('service_order_id', orderId)
         .eq('technician_id', technicianId)
-        .eq('status', 'assigned')
         .maybeSingle();
       
       if (assignmentData) {
         setAssignmentId(assignmentData.id);
+      } else {
+        console.warn('No assignment found for this order and technician');
+        toast.warning('Tidak ditemukan assignment untuk order ini');
       }
       
     } catch (error: any) {
@@ -316,6 +318,11 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
     
     if (!sigTechnicianRef.current?.isEmpty() === false || !sigClientRef.current?.isEmpty() === false) {
       toast.error("Tanda tangan Teknisi dan PIC wajib diisi");
+      return;
+    }
+    
+    if (!assignmentId) {
+      toast.error("Tidak ditemukan assignment untuk order ini. Hubungi admin.");
       return;
     }
     
