@@ -15,13 +15,14 @@ ORDER BY count DESC;
 -- Step 2: Check all technicians (old and new role names)
 SELECT 
   p.full_name,
-  p.email,
+  au.email,
   utr.role,
   utr.is_active,
   t.name as tenant_name,
   utr.created_at
 FROM user_tenant_roles utr
 INNER JOIN profiles p ON utr.user_id = p.id
+LEFT JOIN auth.users au ON p.id = au.id
 LEFT JOIN tenants t ON utr.tenant_id = t.id
 WHERE utr.role IN ('technician', 'teknisi', 'tech_head', 'senior_teknisi')
 ORDER BY utr.is_active DESC, p.full_name;
@@ -62,14 +63,16 @@ ORDER BY t.name;
 
 SELECT 
   t.name as technician_name,
-  t.email,
+  t.email as technician_email,
   p.full_name as profile_name,
+  au.email as auth_email,
   CASE 
     WHEN utr.id IS NULL THEN '❌ No role assigned'
     ELSE '✅ Has role: ' || utr.role
   END as status
 FROM technicians t
 LEFT JOIN profiles p ON t.user_id = p.id
+LEFT JOIN auth.users au ON p.id = au.id
 LEFT JOIN user_tenant_roles utr ON p.id = utr.user_id
 WHERE utr.id IS NULL OR utr.role IN ('technician', 'teknisi');
 
@@ -115,13 +118,14 @@ GROUP BY category
 ORDER BY total DESC;
 
 -- Check specific user's roles
--- SELECT 
---   p.full_name,
---   p.email,
+-- SEau.email,
 --   utr.role,
 --   utr.is_active,
 --   t.name as tenant_name
 -- FROM profiles p
+-- LEFT JOIN auth.users au ON p.id = au.id
 -- LEFT JOIN user_tenant_roles utr ON p.id = utr.user_id
+-- LEFT JOIN tenants t ON utr.tenant_id = t.id
+-- WHERE auIN user_tenant_roles utr ON p.id = utr.user_id
 -- LEFT JOIN tenants t ON utr.tenant_id = t.id
 -- WHERE p.email = 'technician@example.com';
