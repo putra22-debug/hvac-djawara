@@ -44,6 +44,13 @@ export function AuditLogViewer({ clientId }: AuditLogViewerProps) {
 
   async function fetchAuditLogs() {
     try {
+      // Note: Audit logging is currently disabled
+      // The client_audit_log table was removed to fix delete functionality
+      setLogs([])
+      setLoading(false)
+      return
+      
+      /* Original code - disabled
       const { data, error: fetchError } = await supabase
         .from('client_audit_log')
         .select(`
