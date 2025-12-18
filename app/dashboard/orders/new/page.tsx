@@ -83,6 +83,7 @@ export default function NewOrderPage() {
     sales_referral_id: '',
     order_source: 'admin_manual',
     notes: '',
+    is_historical: 'false', // New field: false = new work, true = historical record
   })
 
   const [newClientData, setNewClientData] = useState({
@@ -308,10 +309,19 @@ export default function NewOrderPage() {
 
       if (!profile?.active_tenant_id) throw new Error('No active tenant')
 
-      // Determine status based on assignment and schedule
+      // Determine status based on historical flag and assignment
       let orderStatus = 'listing'
-      if (formData.start_date) {
-        orderStatus = formData.assigned_to ? 'scheduled' : 'pending'
+      
+      if (formData.is_historical === 'true') {
+        // Historical record - pekerjaan yang sudah selesai
+        orderStatus = 'completed'
+      } else {
+        // New work - pekerjaan yang akan dikerjakan
+        if (formData.start_date) {
+          orderStatus = selectedTechnicians.length > 0 ? 'scheduled' : 'pending'
+        } else {
+          orderStatus = 'listing'
+        }
       }
 
       // Create order
@@ -588,6 +598,52 @@ export default function NewOrderPage() {
                   📍 {formData.client_id ? 'Auto-filled from client address (you can edit)' : 'Enter complete service address'}
                 </p>
               </div>
+
+              <Separator />
+
+              {/* Order Type - Historical or New Work */}
+              <div className="space-y-2">
+                <Label htmlFor="is_historical">Tipe Pencatatan *</Label>
+                <Select 
+                  value={formData.is_historical} 
+                  onValueChange={(value) => setFormData({ ...formData, is_historical: value })}
+                >
+                  <SelectTrigger id="is_historical">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="false">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📝</span>
+                        <div>
+                          <p className="font-medium">Pekerjaan Baru</p>
+                          <p className="text-xs text-gray-500">Order yang akan dikerjakan</p>
+                        </div>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="true">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📋</span>
+                        <div>
+                          <p className="font-medium">Riwayat / Sudah Selesai</p>
+                          <p className="text-xs text-gray-500">Pekerjaan yang sudah dikerjakan (historical record)</p>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {formData.is_historical === 'true' ? (
+                    <span className="text-green-600">
+                      ✅ Order ini akan tercatat sebagai <strong>Completed</strong> (riwayat pekerjaan yang sudah selesai)
+                    </span>
+                  ) : (
+                    <span className="text-blue-600">
+                      🔵 Order ini akan tercatat sebagai <strong>Listing/Scheduled</strong> (pekerjaan yang akan dikerjakan)
+                    </span>
+                  )}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -734,13 +790,23 @@ export default function NewOrderPage() {
             <CardHeader>
               <CardTitle>Project Schedule</CardTitle>
               <CardDescription>
-                Set start and end date/time for project estimation. Schedule will sync to client portal.
+                {formData.is_historical === 'true' ? (
+                  <span className="text-green-700">
+                    📋 <strong>Riwayat:</strong> Masukkan tanggal saat pekerjaan <strong>sebenarnya dikerjakan</strong> (tanggal masa lalu)
+                  </span>
+                ) : (
+                  <span>
+                    Set start and end date/time for project estimation. Schedule will sync to client portal.
+                  </span>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="start_date">Start Date</Label>
+                  <Label htmlFor="start_date">
+                    Start Date {formData.is_historical === 'true' ? '(Tanggal Dikerjakan)' : ''}
+                  </Label>
                   <Input
                     id="start_date"
                     type="date"
@@ -748,7 +814,9 @@ export default function NewOrderPage() {
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Can select any date (past or future)
+                    {formData.is_historical === 'true' 
+                      ? '📅 Pilih tanggal saat pekerjaan dikerjakan' 
+                      : 'Can select any date (past or future)'}
                   </p>
                 </div>
                 <div className="space-y-2">
