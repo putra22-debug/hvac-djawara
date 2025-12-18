@@ -104,13 +104,12 @@ export default function TechnicianDashboard() {
         return;
       }
 
-      // Fetch service orders separately (exclude completed and cancelled)
+      // Fetch service orders separately (include all orders)
       const orderIds = assignmentsData.map(a => a.service_order_id);
       const { data: ordersData, error: ordersError } = await supabase
         .from("service_orders")
         .select("id, order_number, service_title, service_description, location_address, scheduled_date, status, priority, estimated_duration")
-        .in("id", orderIds)
-        .not("status", "in", "(completed,cancelled)");
+        .in("id", orderIds);
 
       if (ordersError) {
         console.error("Error fetching orders:", ordersError);
@@ -119,13 +118,13 @@ export default function TechnicianDashboard() {
 
       // Merge assignment data with order data
       const formattedOrders = assignmentsData.map((assignment: any) => {
-        const order = ordersData.find(o => o.id === assignment.service_order_id);
+        const order = ordersData?.find(o => o.id === assignment.service_order_id);
         return {
           ...order,
-          assignment_status: assignment.status, // Use 'status' from work_order_assignments
+          assignment_status: assignment.status,
           assigned_at: assignment.assigned_at,
         };
-      }).filter(order => order.id); // Filter out any orders not found
+      }).filter(order => order && order.id); // Filter out any orders not found
 
       setWorkOrders(formattedOrders);
     } catch (error: any) {
@@ -170,8 +169,21 @@ export default function TechnicianDashboard() {
     );
   }
 
-  const pendingOrders = workOrders.filter((o) => o.status === "scheduled" && o.assignment_status === "assigned");
-  const inProgressOrders = workOrders.filter((o) => o.status === "in_progress" || (o.status === "scheduled" && (o.assignment_status === "in_progress" || o.assignment_status === "accepted")));
+  // Tugas Baru: Order scheduled/in_progress yang belum complete (exclude completed status)
+  const pendingOrders = workOrders.filter((o) => 
+    o.status !== "completed" && 
+    o.status !== "cancelled" && 
+    o.assignment_status === "assigned"
+  );
+  
+  // Dalam Proses: Order yang sedang dikerjakan
+  const inProgressOrders = workOrders.filter((o) => 
+    o.status === "in_progress" || 
+    (o.assignment_status === "in_progress" || o.assignment_status === "accepted")
+  );
+  
+  // Order Completed yang perlu diisi form teknis (tampilkan di Tugas Baru dengan label khusus)
+  const completedOrders = workOrders.filter((o) => o.status === "completed");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -311,13 +323,23 @@ export default function TechnicianDashboard() {
                         </div>
                       </div>
 
-                      {order.assignment_status === "assigned" && (
-                        <div className="mt-3">
+                      <div className="mt-3">
+                        {order.status === "completed" && (
+                          <Badge className="bg-green-100 text-green-800">
+                            ✓ Selesai - Lengkapi Data Teknis
+                          </Badge>
+                        )}
+                        {order.assignment_status === "assigned" && order.status !== "completed" && (
                           <Badge className="bg-blue-100 text-blue-800">
                             Tugas Baru - Tap untuk detail
                           </Badge>
-                        </div>
-                      )}
+                        )}
+                        {(order.assignment_status === "in_progress" || order.assignment_status === "accepted") && order.status !== "completed" && (
+                          <Badge className="bg-yellow-100 text-yellow-800">
+                            Dalam Proses
+                          </Badge>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}

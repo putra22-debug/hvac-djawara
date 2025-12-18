@@ -19,6 +19,10 @@ CREATE INDEX IF NOT EXISTS idx_spareparts_work_log ON work_order_spareparts(work
 
 -- 2. Add fields to technician_work_logs for BAST format
 ALTER TABLE technician_work_logs
+-- Core foreign key (in case not exists)
+ADD COLUMN IF NOT EXISTS service_order_id UUID REFERENCES service_orders(id) ON DELETE CASCADE,
+ADD COLUMN IF NOT EXISTS technician_id UUID REFERENCES technicians(id) ON DELETE CASCADE,
+
 -- Time tracking (before/after)
 ADD COLUMN IF NOT EXISTS start_time TIMESTAMPTZ,
 ADD COLUMN IF NOT EXISTS end_time TIMESTAMPTZ,
@@ -59,14 +63,15 @@ COMMENT ON COLUMN technician_work_logs.report_type IS 'Type of report: spk (deta
 -- Enable RLS on spareparts table
 ALTER TABLE work_order_spareparts ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for spareparts (copy from work_logs)
+-- RLS Policies for spareparts (using technicians table for tenant check)
 CREATE POLICY "Users can view spareparts in their tenant"
   ON work_order_spareparts FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM technician_work_logs wl
+      JOIN technicians t ON wl.technician_id = t.id
       WHERE wl.id = work_order_spareparts.work_log_id
-      AND wl.tenant_id = (SELECT active_tenant_id FROM profiles WHERE id = auth.uid())
+      AND t.tenant_id = (SELECT active_tenant_id FROM profiles WHERE id = auth.uid())
     )
   );
 
@@ -75,8 +80,9 @@ CREATE POLICY "Technicians can insert spareparts"
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM technician_work_logs wl
+      JOIN technicians t ON wl.technician_id = t.id
       WHERE wl.id = work_order_spareparts.work_log_id
-      AND wl.tenant_id = (SELECT active_tenant_id FROM profiles WHERE id = auth.uid())
+      AND t.tenant_id = (SELECT active_tenant_id FROM profiles WHERE id = auth.uid())
     )
   );
 
@@ -85,8 +91,9 @@ CREATE POLICY "Technicians can update spareparts"
   USING (
     EXISTS (
       SELECT 1 FROM technician_work_logs wl
+      JOIN technicians t ON wl.technician_id = t.id
       WHERE wl.id = work_order_spareparts.work_log_id
-      AND wl.tenant_id = (SELECT active_tenant_id FROM profiles WHERE id = auth.uid())
+      AND t.tenant_id = (SELECT active_tenant_id FROM profiles WHERE id = auth.uid())
     )
   );
 
@@ -95,8 +102,9 @@ CREATE POLICY "Technicians can delete spareparts"
   USING (
     EXISTS (
       SELECT 1 FROM technician_work_logs wl
+      JOIN technicians t ON wl.technician_id = t.id
       WHERE wl.id = work_order_spareparts.work_log_id
-      AND wl.tenant_id = (SELECT active_tenant_id FROM profiles WHERE id = auth.uid())
+      AND t.tenant_id = (SELECT active_tenant_id FROM profiles WHERE id = auth.uid())
     )
   );
 
