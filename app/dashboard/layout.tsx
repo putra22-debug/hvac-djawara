@@ -21,6 +21,31 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
+  // Check if user is a technician - they should use /technician routes
+  const { data: techData } = await supabase
+    .from('technicians')
+    .select('id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (techData) {
+    // Redirect technicians to their dashboard
+    redirect('/technician/dashboard')
+  }
+
+  // Also check user_tenant_roles
+  const { data: userRole } = await supabase
+    .from('user_tenant_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .single()
+
+  if (userRole?.role === 'technician' || userRole?.role === 'helper') {
+    // Redirect technicians to their dashboard
+    redirect('/technician/dashboard')
+  }
+
   // Get user profile with tenant info
   const { data: profile } = await supabase
     .from('profiles')

@@ -59,7 +59,31 @@ export function LoginForm() {
 
       if (authData?.user) {
         console.log('✓ Login successful for user:', authData.user.email)
-        router.push('/dashboard')
+        
+        // Check user role to redirect appropriately
+        const { data: userRoles } = await supabase
+          .from('user_tenant_roles')
+          .select('role')
+          .eq('user_id', authData.user.id)
+          .eq('is_active', true)
+          .single()
+
+        // Check if user is in technicians table
+        const { data: techData } = await supabase
+          .from('technicians')
+          .select('id')
+          .eq('user_id', authData.user.id)
+          .single()
+
+        // Redirect based on role/type
+        if (techData || userRoles?.role === 'technician' || userRoles?.role === 'helper') {
+          console.log('✓ Technician login - redirecting to /technician/dashboard')
+          router.push('/technician/dashboard')
+        } else {
+          console.log('✓ Staff login - redirecting to /dashboard')
+          router.push('/dashboard')
+        }
+        
         router.refresh()
       } else {
         console.warn('Login succeeded but no user returned:', authData)
