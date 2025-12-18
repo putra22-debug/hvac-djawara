@@ -126,27 +126,27 @@ export default function TechnicianDashboard() {
         };
       }).filter(order => order && order.id); // Filter out any orders not found
 
-      // Try to fetch work logs with technical reports (don't fail if error)
-      try {
-        const { data: workLogsData, error: logsError } = await supabase
-          .from("technician_work_logs")
-          .select("id, service_order_id, completed_at")
-          .eq("technician_id", technicianId)
-          .not("completed_at", "is", null)
-          .order("completed_at", { ascending: false })
-          .limit(10);
+      // Fetch work logs with technical reports
+      const { data: workLogsData, error: logsError } = await supabase
+        .from("technician_work_logs")
+        .select("service_order_id, completed_at")
+        .eq("technician_id", technicianId)
+        .not("completed_at", "is", null);
 
-        // Mark orders that have technical reports
-        if (workLogsData && workLogsData.length > 0 && !logsError) {
-          workLogsData.forEach((log: any) => {
-            const existingOrder = formattedOrders.find(o => o.id === log.service_order_id);
-            if (existingOrder) {
-              existingOrder.has_technical_report = true;
-            }
-          });
-        }
-      } catch (logsError) {
-        console.log("Could not fetch work logs:", logsError);
+      console.log("Work logs fetched:", workLogsData?.length || 0, "orders");
+      if (logsError) {
+        console.error("Work logs error:", logsError);
+      }
+
+      // Mark orders that have technical reports
+      if (workLogsData && workLogsData.length > 0) {
+        workLogsData.forEach((log: any) => {
+          const existingOrder = formattedOrders.find(o => o.id === log.service_order_id);
+          if (existingOrder) {
+            existingOrder.has_technical_report = true;
+            console.log("Marked order", existingOrder.order_number, "as having technical report");
+          }
+        });
       }
 
       setWorkOrders(formattedOrders);
