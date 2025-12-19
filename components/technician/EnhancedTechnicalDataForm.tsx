@@ -180,13 +180,25 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         setClientName(existingWorkLog.signature_client_name || orderData.clients?.name || "");
         setSignatureDate(existingWorkLog.signature_date ? new Date(existingWorkLog.signature_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
         
-        // Load signature images to canvas
-        if (existingWorkLog.signature_technician && sigTechnicianRef.current) {
-          sigTechnicianRef.current.fromDataURL(existingWorkLog.signature_technician);
-        }
-        if (existingWorkLog.signature_client && sigClientRef.current) {
-          sigClientRef.current.fromDataURL(existingWorkLog.signature_client);
-        }
+        // Load signature images to canvas (delay to ensure canvas is ready)
+        setTimeout(() => {
+          if (existingWorkLog.signature_technician && sigTechnicianRef.current) {
+            try {
+              sigTechnicianRef.current.fromDataURL(existingWorkLog.signature_technician);
+              console.log('Loaded technician signature');
+            } catch (e) {
+              console.error('Failed to load technician signature:', e);
+            }
+          }
+          if (existingWorkLog.signature_client && sigClientRef.current) {
+            try {
+              sigClientRef.current.fromDataURL(existingWorkLog.signature_client);
+              console.log('Loaded client signature');
+            } catch (e) {
+              console.error('Failed to load client signature:', e);
+            }
+          }
+        }, 500);
         
         // Load photos
         if (existingWorkLog.documentation_photos && existingWorkLog.documentation_photos.length > 0) {
@@ -1019,6 +1031,8 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
                 unit: sp.unit,
                 notes: sp.notes,
               })),
+              photos: photos.map(p => p.preview), // Photo URLs or base64
+              photo_captions: photos.map(p => p.caption),
               signature_technician: sigTechnicianRef.current?.toDataURL(),
               signature_client: sigClientRef.current?.toDataURL(),
               signature_technician_name: technicianName,

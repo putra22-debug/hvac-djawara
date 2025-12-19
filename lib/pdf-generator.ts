@@ -1,6 +1,28 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// Helper to load image as base64
+function loadImage(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      } else {
+        reject(new Error("Failed to get canvas context"));
+      }
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 interface WorkLogData {
   order_number: string;
   service_title: string;
@@ -141,6 +163,61 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     yPos = (doc as any).lastAutoTable.finalY + 10;
   }
   
+  // Photo Documentation
+  if (data.photos && data.photos.length > 0) {
+    doc.addPage();
+    yPos = 20;
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Dokumentasi Foto Pekerjaan", 20, yPos);
+    yPos += 10;
+    
+    // Display photos in grid (2 columns)
+    let col = 0;
+    for (let i = 0; i < data.photos.length; i++) {
+      const photo = data.photos[i];
+      const caption = data.photo_captions?.[i] || `Foto ${i + 1}`;
+      
+      const xPos = col === 0 ? 20 : 110;
+      
+      try {
+        // Try to add image (may fail for some formats)
+        await loadImage(photo).then((img) => {
+          doc.addImage(img, "JPEG", xPos, yPos, 80, 60);
+        }).catch(() => {
+          // If image load fails, show placeholder
+          doc.rect(xPos, yPos, 80, 60);
+          doc.setFontSize(8);
+          doc.text("Foto tidak dapat dimuat", xPos + 40, yPos + 30, { align: "center" });
+        });
+      } catch (e) {
+        console.error("Failed to add photo:", e);
+        doc.rect(xPos, yPos, 80, 60);
+      }
+      
+      // Caption
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      const captionLines = doc.splitTextToSize(caption, 75);
+      doc.text(captionLines, xPos + 2, yPos + 65);
+      
+      col++;
+      if (col >= 2) {
+        col = 0;
+        yPos += 75;
+        
+        // New page if needed
+        if (yPos > 220) {
+          doc.addPage();
+          yPos = 20;
+        }
+      }
+    }
+    
+    if (col > 0) yPos += 75; // Add space if last row not complete
+  }
+  
   // Signatures
   if (yPos > 220) {
     doc.addPage();
@@ -148,6 +225,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   }
   
   doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
   doc.text("Tanda Tangan", 20, yPos);
   yPos += 10;
   

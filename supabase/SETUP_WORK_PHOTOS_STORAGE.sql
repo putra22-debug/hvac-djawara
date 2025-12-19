@@ -1,7 +1,5 @@
--- Create storage bucket for work photos and signatures
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('work-photos', 'work-photos', true)
-ON CONFLICT (id) DO NOTHING;
+-- Bucket already exists, skip creation
+-- Just setup policies
 
 -- Drop existing policies if they exist
 DROP POLICY IF EXISTS "Technicians can upload work photos" ON storage.objects;
