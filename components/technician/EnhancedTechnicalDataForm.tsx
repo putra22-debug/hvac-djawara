@@ -348,15 +348,24 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         const fileName = `${orderId}_doc_${Date.now()}_${i}.${fileExt}`;
         const filePath = `${technicianId}/${fileName}`;
         
-        const { error: uploadError } = await supabase.storage
+        console.log(`Uploading photo ${i + 1} to:`, filePath);
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from("work-photos")
           .upload(filePath, photo.file!);
         
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error(`Upload error for photo ${i + 1}:`, uploadError);
+          throw uploadError;
+        }
+        
+        console.log(`Upload success for photo ${i + 1}:`, uploadData);
         
         const { data: { publicUrl } } = supabase.storage
           .from("work-photos")
           .getPublicUrl(filePath);
+        
+        console.log(`Public URL for photo ${i + 1}:`, publicUrl);
         
         // Update photo with uploaded URL
         setPhotos(prev => prev.map((p, idx) => 
@@ -371,8 +380,8 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         
         toast.success(`Foto ${i + 1} berhasil diupload`);
       } catch (error: any) {
-        console.error("Upload error:", error);
-        toast.error(`Gagal upload foto ${i + 1}: ${error.message}`);
+        console.error(`Upload error for photo ${i + 1}:`, error);
+        toast.error(`Gagal upload foto ${i + 1}: ${error.message || 'Unknown error'}`);
         
         // Mark as failed
         setPhotos(prev => prev.map((p, idx) => 
@@ -912,14 +921,6 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
                     </div>
                   )}
                   
-                  {/* Upload Success Badge */}
-                  {photo.uploaded && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      Terupload
-                    </div>
-                  )}
-                  
                   <div className="flex gap-3">
                     <div className="relative">
                       <img
@@ -927,12 +928,24 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
                         alt={`Preview ${index + 1}`}
                         className="w-24 h-24 object-cover rounded"
                       />
+                      {/* Upload Success Badge on Image */}
+                      {photo.uploaded && (
+                        <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span className="text-xs">OK</span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium">
-                          Foto #{index + 1}
-                        </Label>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-sm font-medium">
+                            Foto #{index + 1}
+                          </Label>
+                          {photo.uploaded && (
+                            <span className="text-xs text-green-600 font-medium">✓ Tersimpan</span>
+                          )}
+                        </div>
                         <Button
                           type="button"
                           size="sm"
