@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import OrderTimeline from "@/components/technician/OrderTimeline";
 
 interface Technician {
   id: string;
@@ -354,26 +355,26 @@ export default function TechnicianDashboard() {
                       </div>
 
                       <div className="mt-3">
-                        {order.has_technical_report && (
-                          <Badge className="bg-green-600 text-white">
-                            ✓ Laporan Teknis Tersimpan
-                          </Badge>
-                        )}
-                        {order.status === "completed" && !order.has_technical_report && (
-                          <Badge className="bg-orange-100 text-orange-800">
-                            ⚠ Selesai - Lengkapi Data Teknis
-                          </Badge>
-                        )}
-                        {order.assignment_status === "assigned" && order.status !== "completed" && (
-                          <Badge className="bg-blue-100 text-blue-800">
-                            Tugas Baru - Tap untuk detail
-                          </Badge>
-                        )}
-                        {(order.assignment_status === "in_progress" || order.assignment_status === "accepted") && order.status !== "completed" && (
-                          <Badge className="bg-yellow-100 text-yellow-800">
-                            Dalam Proses
-                          </Badge>
-                        )}
+                        <OrderTimeline
+                          steps={[
+                            {
+                              status: order.assignment_status === "assigned" || order.assignment_status === "accepted" || order.status === "in_progress" || order.status === "completed" ? "completed" : "pending",
+                              label: "Ditugaskan",
+                            },
+                            {
+                              status: order.status === "in_progress" || order.status === "completed" ? "completed" : order.assignment_status === "in_progress" ? "current" : "pending",
+                              label: "Proses",
+                            },
+                            {
+                              status: order.status === "completed" && !order.has_technical_report ? "current" : order.status === "completed" && order.has_technical_report ? "completed" : "pending",
+                              label: "Selesai",
+                            },
+                            {
+                              status: order.has_technical_report ? "completed" : "pending",
+                              label: "Laporan",
+                            },
+                          ]}
+                        />
                       </div>
                     </CardContent>
                   </Card>

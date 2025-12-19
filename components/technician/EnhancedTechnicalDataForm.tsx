@@ -974,25 +974,74 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         </CardContent>
       </Card>
 
-      {/* Submit Button */}
-      <Button
-        className="w-full"
-        size="lg"
-        onClick={handleSubmit}
-        disabled={uploading || !formData.problem || !formData.tindakan || !technicianName || !clientName}
-      >
-        {uploading ? (
-          <>
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            Menyimpan & Mengupload...
-          </>
-        ) : (
-          <>
-            <Save className="mr-2 h-5 w-5" />
-            Simpan Laporan Pekerjaan
-          </>
-        )}
-      </Button>
+      {/* Action Buttons */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={handleSubmit}
+          disabled={uploading || !formData.problem || !formData.tindakan || !technicianName || !clientName}
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Menyimpan & Mengupload...
+            </>
+          ) : (
+            <>
+              <Save className="mr-2 h-5 w-5" />
+              Simpan Laporan Pekerjaan
+            </>
+          )}
+        </Button>
+        
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={async () => {
+            const { generateTechnicalReportPDF } = await import("@/lib/pdf-generator");
+            const blob = await generateTechnicalReportPDF({
+              order_number: orderId,
+              service_title: formData.jenis_pekerjaan,
+              client_name: clientName,
+              location: formData.alamat_lokasi,
+              scheduled_date: new Date().toISOString(),
+              technician_name: technicianName,
+              problem: formData.problem,
+              tindakan: formData.tindakan,
+              rincian_pekerjaan: formData.rincian_pekerjaan,
+              rincian_kerusakan: formData.rincian_kerusakan,
+              lama_kerja: formData.lama_kerja ? parseFloat(formData.lama_kerja) : undefined,
+              jarak_tempuh: formData.jarak_tempuh ? parseFloat(formData.jarak_tempuh) : undefined,
+              spareparts: spareparts.map(sp => ({
+                name: sp.name,
+                quantity: sp.quantity,
+                unit: sp.unit,
+                notes: sp.notes,
+              })),
+              signature_technician: sigTechnicianRef.current?.toDataURL(),
+              signature_client: sigClientRef.current?.toDataURL(),
+              signature_technician_name: technicianName,
+              signature_client_name: clientName,
+              signature_date: signatureDate,
+            });
+            
+            // Download PDF
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Laporan-${orderId}-${Date.now()}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            toast.success("PDF berhasil diunduh!");
+          }}
+          disabled={!formData.problem || !formData.tindakan}
+        >
+          <Upload className="mr-2 h-5 w-5" />
+          Export PDF
+        </Button>
+      </div>
     </div>
   );
 }
