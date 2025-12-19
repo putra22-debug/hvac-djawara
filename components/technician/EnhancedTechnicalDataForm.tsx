@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Upload, X, Loader2, Plus, Trash2, PenTool, Save, MapPin, Navigation } from "lucide-react";
+import { Upload, X, Loader2, Plus, Trash2, PenTool, Save, MapPin, Navigation, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import SignatureCanvas from "react-signature-canvas";
@@ -20,9 +20,11 @@ interface Sparepart {
 }
 
 interface PhotoWithCaption {
-  file: File;
+  file: File | null;
   preview: string;
   caption: string;
+  uploading?: boolean;
+  uploaded?: boolean;
 }
 
 interface TechnicalDataFormProps {
@@ -310,7 +312,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
   };
 
   // Photo management with captions
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
     if (photos.length + files.length > 10) {
@@ -321,10 +323,63 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
     const newPhotos: PhotoWithCaption[] = files.map(file => ({
       file,
       preview: URL.createObjectURL(file),
-      caption: ""
+      caption: "",
+      uploading: false,
+      uploaded: false,
     }));
     
     setPhotos(prev => [...prev, ...newPhotos]);
+    
+    // Auto-upload each photo immediately
+    const supabase = createClient();
+    const startIndex = photos.length;
+    
+    for (let i = 0; i < newPhotos.length; i++) {
+      const photoIndex = startIndex + i;
+      const photo = newPhotos[i];
+      
+      // Mark as uploading
+      setPhotos(prev => prev.map((p, idx) => 
+        idx === photoIndex ? { ...p, uploading: true } : p
+      ));
+      
+      try {
+        const fileExt = photo.file!.name.split(".").pop();
+        const fileName = `${orderId}_doc_${Date.now()}_${i}.${fileExt}`;
+        const filePath = `${technicianId}/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from("work-photos")
+          .upload(filePath, photo.file!);
+        
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from("work-photos")
+          .getPublicUrl(filePath);
+        
+        // Update photo with uploaded URL
+        setPhotos(prev => prev.map((p, idx) => 
+          idx === photoIndex ? { 
+            ...p, 
+            preview: publicUrl, 
+            file: null, // Clear file after upload
+            uploading: false, 
+            uploaded: true 
+          } : p
+        ));
+        
+        toast.success(`Foto ${i + 1} berhasil diupload`);
+      } catch (error: any) {
+        console.error("Upload error:", error);
+        toast.error(`Gagal upload foto ${i + 1}: ${error.message}`);
+        
+        // Mark as failed
+        setPhotos(prev => prev.map((p, idx) => 
+          idx === photoIndex ? { ...p, uploading: false, uploaded: false } : p
+        ));
+      }
+    }
   };
 
   const updatePhotoCaption = (index: number, caption: string) => {
@@ -338,41 +393,24 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
     setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Upload photos
+  // Upload photos (skip already uploaded ones)
   const uploadPhotos = async (): Promise<{ urls: string[], captions: string[] }> => {
-    const supabase = createClient();
     const urls: string[] = [];
     const captions: string[] = [];
     
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
       
-      // If photo is already uploaded (from existing data), use existing URL
-      if (!photo.file) {
-        urls.push(photo.preview); // preview contains the existing URL
+      // If photo is already uploaded (uploaded=true or no file), use existing URL
+      if (!photo.file || photo.uploaded) {
+        urls.push(photo.preview); // preview contains the URL
         captions.push(photo.caption || `Foto ${i + 1}`);
         continue;
       }
       
-      // Upload new photo
-      const fileExt = photo.file.name.split(".").pop();
-      const fileName = `${orderId}_doc_${Date.now()}_${i}.${fileExt}`;
-      const filePath = `${technicianId}/${fileName}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from("work-photos")
-        .upload(filePath, photo.file);
-      
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        throw uploadError;
-      }
-      
-      const { data: { publicUrl } } = supabase.storage
-        .from("work-photos")
-        .getPublicUrl(filePath);
-      
-      urls.push(publicUrl);
+      // Should not reach here if auto-upload worked, but just in case:
+      toast.warning(`Foto ${i + 1} belum selesai diupload, menunggu...`);
+      urls.push(photo.preview);
       captions.push(photo.caption || `Foto ${i + 1}`);
     }
     
@@ -863,13 +901,33 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
           {photos.length > 0 && (
             <div className="space-y-3">
               {photos.map((photo, index) => (
-                <div key={index} className="border rounded-lg p-3">
+                <div key={index} className="border rounded-lg p-3 relative">
+                  {/* Upload Loading Overlay */}
+                  {photo.uploading && (
+                    <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center z-10">
+                      <div className="text-center text-white">
+                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                        <p className="text-sm font-medium">Mengupload...</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Upload Success Badge */}
+                  {photo.uploaded && (
+                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Terupload
+                    </div>
+                  )}
+                  
                   <div className="flex gap-3">
-                    <img
-                      src={photo.preview}
-                      alt={`Preview ${index + 1}`}
-                      className="w-24 h-24 object-cover rounded"
-                    />
+                    <div className="relative">
+                      <img
+                        src={photo.preview}
+                        alt={`Preview ${index + 1}`}
+                        className="w-24 h-24 object-cover rounded"
+                      />
+                    </div>
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-sm font-medium">
@@ -880,6 +938,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
                           size="sm"
                           variant="destructive"
                           onClick={() => removePhoto(index)}
+                          disabled={photo.uploading}
                         >
                           <X className="w-3 h-3 mr-1" />
                           Hapus
@@ -889,6 +948,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
                         placeholder="Keterangan foto..."
                         value={photo.caption}
                         onChange={(e) => updatePhotoCaption(index, e.target.value)}
+                        disabled={photo.uploading}
                       />
                     </div>
                   </div>
