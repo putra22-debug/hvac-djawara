@@ -480,8 +480,18 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
 
   // Submit form
   const handleSubmit = async () => {
+    console.log("🚀 handleSubmit called!");
+    console.log("📋 Current state:", {
+      workType,
+      maintenanceUnits: maintenanceUnits.length,
+      technicianName,
+      clientName,
+      uploading
+    });
+    
     // Validation
     if (!workType) {
+      console.log("❌ Validation failed: No workType");
       toast.error("Pilih kategori rincian pekerjaan terlebih dahulu");
       return;
     }
@@ -1321,7 +1331,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
           className="w-full"
           size="lg"
           onClick={handleSubmit}
-          disabled={uploading || !formData.problem || !formData.tindakan || !technicianName || !clientName}
+          disabled={uploading || !technicianName || !clientName}
         >
           {uploading ? (
             <>
