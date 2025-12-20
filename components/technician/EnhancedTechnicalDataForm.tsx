@@ -502,9 +502,19 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
       }
     }
     
-    if (workType === "pemeliharaan" && maintenanceUnits.length === 0) {
-      toast.error("Tambahkan minimal 1 unit untuk pemeliharaan");
-      return;
+    if (workType === "pemeliharaan") {
+      if (maintenanceUnits.length === 0) {
+        toast.error("Tambahkan minimal 1 unit untuk pemeliharaan");
+        return;
+      }
+      
+      // Validate each unit has required fields
+      for (const unit of maintenanceUnits) {
+        if (!unit.nama_ruang || !unit.merk_ac || !unit.kapasitas_ac || !unit.kondisi_ac) {
+          toast.error("Semua field unit yang bertanda (*) wajib diisi");
+          return;
+        }
+      }
     }
     
     if (workType === "troubleshooting") {
@@ -529,7 +539,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
       return;
     }
     
-    if (!sigTechnicianRef.current?.isEmpty() === false || !sigClientRef.current?.isEmpty() === false) {
+    if (sigTechnicianRef.current?.isEmpty() || sigClientRef.current?.isEmpty()) {
       toast.error("Tanda tangan Teknisi dan PIC wajib diisi");
       return;
     }
