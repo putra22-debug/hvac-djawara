@@ -155,7 +155,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-  doc.text("📋 INFORMASI PEKERJAAN", 20, yPos);
+  doc.text("INFORMASI PEKERJAAN", 20, yPos);
   doc.setTextColor(0, 0, 0);
   yPos += 5;
   
@@ -170,12 +170,14 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     styles: {
       fontSize: 9,
       cellPadding: 3,
+      overflow: 'linebreak',
+      cellWidth: 'wrap'
     },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 30, fillColor: colors.light },
-      1: { cellWidth: 55 },
+      1: { cellWidth: 55, overflow: 'linebreak' },
       2: { fontStyle: 'bold', cellWidth: 25, fillColor: colors.light },
-      3: { cellWidth: 70 },
+      3: { cellWidth: 70, overflow: 'linebreak' },
     },
     margin: { left: 15, right: 15 },
   });
@@ -186,7 +188,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-  doc.text("🔧 LAPORAN PEKERJAAN", 20, yPos);
+  doc.text("LAPORAN PEKERJAAN", 20, yPos);
   doc.setTextColor(0, 0, 0);
   yPos += 5;
   
@@ -312,7 +314,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.text("🔧 SPAREPART YANG DIGUNAKAN", 20, yPos);
+    doc.text("SPAREPART YANG DIGUNAKAN", 20, yPos);
     doc.setTextColor(0, 0, 0);
     yPos += 5;
     
@@ -363,7 +365,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("📸 DOKUMENTASI FOTO PEKERJAAN", 105, 10, { align: "center" });
+    doc.text("DOKUMENTASI FOTO PEKERJAAN", 105, 10, { align: "center" });
     doc.setTextColor(0, 0, 0);
     
     yPos = 25;
@@ -434,7 +436,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
           doc.setTextColor(255, 255, 255);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(12);
-          doc.text("📷 DOKUMENTASI FOTO PER UNIT", 105, 10, { align: "center" });
+          doc.text("DOKUMENTASI FOTO PER UNIT", 105, 10, { align: "center" });
           doc.setTextColor(0, 0, 0);
           
           yPos = 25;
@@ -446,7 +448,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
         doc.setFont("helvetica", "bold");
         doc.setFontSize(10);
         doc.setTextColor(colors.success[0], colors.success[1], colors.success[2]);
-        doc.text(`🏢 Unit ${unitIdx + 1}: ${unit.nama_ruang || 'N/A'}`, 20, yPos + 4);
+        doc.text(`Unit ${unitIdx + 1}: ${unit.nama_ruang || 'N/A'}`, 20, yPos + 4);
         doc.setTextColor(0, 0, 0);
         yPos += 15;
         
@@ -500,7 +502,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     }
   }
   
-  // Signatures with improved layout
+  // Signatures Table
   if (yPos > 200) {
     doc.addPage();
     yPos = 20;
@@ -511,64 +513,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("✍️ TANDA TANGAN", 105, yPos + 2, { align: "center" });
-  doc.setTextColor(0, 0, 0);
-  
-  yPos += 15;
-  
-  // Signature boxes
-  // Technician signature
-  drawBox(20, yPos, 70, 45, [255, 255, 255], colors.primary);
-  if (signatureTechnician) {
-    try {
-      doc.addImage(signatureTechnician, "PNG", 25, yPos + 5, 60, 25);
-    } catch (e) {
-      console.error("Failed to add technician signature:", e);
-    }
-  }
-  
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-  doc.text("Teknisi", 55, yPos + 35, { align: "center" });
-  doc.setTextColor(0, 0, 0);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(signatureTechnicianName || technicianName || '', 55, yPos + 40, { align: "center" });
-  
-  // Client signature
-  drawBox(120, yPos, 70, 45, [255, 255, 255], colors.success);
-  if (signatureClient) {
-    try {
-      doc.addImage(signatureClient, "PNG", 125, yPos + 5, 60, 25);
-    } catch (e) {
-      console.error("Failed to add client signature:", e);
-    }
-  }
-  
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(colors.success[0], colors.success[1], colors.success[2]);
-  doc.text("Klien / PIC", 155, yPos + 35, { align: "center" });
-  doc.setTextColor(0, 0, 0);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(signatureClientName || "", 155, yPos + 40, { align: "center" });
-  
-  yPos += 50;
-  
-  // Signatures Table
-  if (yPos > 220) {
-    doc.addPage();
-    yPos = 20;
-  }
-  
-  // Signature section header
-  drawBox(0, yPos - 5, 210, 12, colors.primary);
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("✍️ TANDA TANGAN", 105, yPos + 2, { align: "center" });
+  doc.text("TANDA TANGAN", 105, yPos + 2, { align: "center" });
   doc.setTextColor(0, 0, 0);
   
   yPos += 10;
@@ -637,7 +582,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   drawBox(15, yPos, 80, 8, colors.light, colors.primary);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text(`📅 Tanggal: ${signatureDate ? new Date(signatureDate).toLocaleDateString("id-ID", { day: '2-digit', month: 'long', year: 'numeric' }) : ""}`, 55, yPos + 5, { align: "center" });
+  doc.text(`Tanggal: ${signatureDate ? new Date(signatureDate).toLocaleDateString("id-ID", { day: '2-digit', month: 'long', year: 'numeric' }) : ""}`, 55, yPos + 5, { align: "center" });
   
   // Footer note
   yPos += 15;
