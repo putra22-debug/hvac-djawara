@@ -590,6 +590,27 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
       return;
     }
     
+    // Check if all maintenance unit photos are uploaded
+    if (workType === "pemeliharaan") {
+      for (let i = 0; i < maintenanceUnits.length; i++) {
+        const unit = maintenanceUnits[i];
+        if (unit.photos && unit.photos.length > 0) {
+          const hasUploadingPhotos = unit.photos.some(p => p.uploading);
+          const hasUnuploadedPhotos = unit.photos.some(p => !p.uploaded || p.preview.startsWith('blob:'));
+          
+          if (hasUploadingPhotos) {
+            toast.error(`Unit ${i + 1}: Tunggu upload foto selesai`);
+            return;
+          }
+          
+          if (hasUnuploadedPhotos) {
+            toast.error(`Unit ${i + 1}: Ada foto yang gagal upload. Hapus dan upload ulang.`);
+            return;
+          }
+        }
+      }
+    }
+    
     try {
       setUploading(true);
       const supabase = createClient();
@@ -715,6 +736,55 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
       
       // Save spareparts
       await saveSpareparts(workLogId);
+      
+      // Update order status to completed and set check_out_time if not set
+      try {
+        const now = new Date().toISOString();
+        
+        // Update work log with check_out_time if not already set
+        const { data: currentLog } = await supabase
+          .from('technician_work_logs')
+          .select('check_out_time')
+          .eq('id', workLogId)
+          .single();
+        
+        if (!currentLog?.check_out_time) {
+          await supabase
+            .from('technician_work_logs')
+            .update({ check_out_time: now })
+            .eq('id', workLogId);
+          console.log('✓ Set check_out_time');
+        }
+        
+        // Update service order status to completed
+        const { error: orderUpdateError } = await supabase
+          .from('service_orders')
+          .update({ 
+            status: 'completed',
+            completed_at: now
+          })
+          .eq('id', orderId);
+        
+        if (orderUpdateError) {
+          console.error('Failed to update order status:', orderUpdateError);
+        } else {
+          console.log('✓ Order status updated to completed');
+        }
+        
+        // Update technician assignment status if exists
+        if (assignmentId) {
+          await supabase
+            .from('technician_assignments')
+            .update({ 
+              status: 'completed',
+              completed_at: now
+            })
+            .eq('id', assignmentId);
+          console.log('✓ Assignment status updated');
+        }
+      } catch (statusErr) {
+        console.error('Failed to update status (non-critical):', statusErr);
+      }
       
       // Create client document entry for BAST
       try {
