@@ -335,7 +335,7 @@ export default function WorkOrderDetailPage() {
         </Card>
 
         {/* Work Log Status */}
-        {workLog && (
+        {workLog && workLog.check_in_time && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Status Pekerjaan</CardTitle>
@@ -344,7 +344,7 @@ export default function WorkOrderDetailPage() {
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
                 <span className="text-sm">
-                  Check-in: {new Date(workLog.check_in_time!).toLocaleString("id-ID")}
+                  Check-in: {new Date(workLog.check_in_time).toLocaleString("id-ID")}
                 </span>
               </div>
               {workLog.check_out_time && (

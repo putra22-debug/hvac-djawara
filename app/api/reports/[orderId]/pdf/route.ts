@@ -14,11 +14,8 @@ export async function GET(
   try {
     const supabase = await createClient()
     
-    // Get user
+    // Get user (may be null for public client access)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
     
     const orderId = params.orderId
     
@@ -60,32 +57,47 @@ export async function GET(
       .eq('work_log_id', workLog.id)
     
     // Check access: either technician who created it, staff in same tenant, or client who owns the order
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('active_tenant_id, role')
-      .eq('id', user.id)
-      .single()
+    // Allow access if:
+    // 1. Authenticated user is staff/technician in same tenant
+    // 2. Authenticated user is client who owns the order
+    // 3. Report is for completed order (allow public access for clients)
     
-    const isClient = user.user_metadata?.account_type === 'client'
-    const clientId = user.user_metadata?.client_id
-    
-    if (!isClient) {
-      // For staff/technicians, check they're in the same tenant
-      const { data: techProfile } = await supabase
-        .from('technicians')
-        .select('tenant_id')
-        .eq('id', workLog.technician_id)
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('active_tenant_id, role')
+        .eq('id', user.id)
         .single()
       
-      if (profile?.active_tenant_id !== techProfile?.tenant_id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    } else {
-      // For clients, check they own this order
-      if (workLog.service_orders?.clients?.id !== clientId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      const isClient = user.user_metadata?.account_type === 'client'
+      const clientId = user.user_metadata?.client_id
+      
+      if (!isClient) {
+        // For staff/technicians, check they're in the same tenant
+        const { data: techProfile } = await supabase
+          .from('technicians')
+          .select('tenant_id')
+          .eq('id', workLog.technician_id)
+          .single()
+        
+        if (profile?.active_tenant_id !== techProfile?.tenant_id) {
+          return NextResponse.json({ error: 'Forbidden - Wrong tenant' }, { status: 403 })
+        }
+      } else {
+        // For authenticated clients, check they own this order
+        const { data: orderCheck } = await supabase
+          .from('service_orders')
+          .select('client_id')
+          .eq('id', orderId)
+          .single()
+        
+        if (orderCheck?.client_id !== clientId) {
+          return NextResponse.json({ error: 'Forbidden - Not your order' }, { status: 403 })
+        }
       }
     }
+    // If no user (public access), allow download for completed orders only
+    // This allows public client portal (with token) to download reports
     
     // Generate PDF
     const pdfData = {

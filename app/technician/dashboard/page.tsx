@@ -133,7 +133,7 @@ export default function TechnicianDashboard() {
       try {
         const { data: workLogsData, error: logsError } = await supabase
           .from("technician_work_logs")
-          .select("service_order_id, completed_at, findings, actions_taken")
+          .select("service_order_id, completed_at, problem, tindakan, signature_client")
           .eq("technician_id", technicianId);
 
         console.log("Work logs fetched:", workLogsData?.length || 0, "records");
@@ -141,13 +141,19 @@ export default function TechnicianDashboard() {
           console.error("Work logs error:", logsError);
         }
 
-        // Mark orders that have technical reports (check if findings or actions exist)
+        // Mark orders that have technical reports (check if problem/tindakan AND signature exist)
         if (workLogsData && workLogsData.length > 0) {
           workLogsData.forEach((log: any) => {
             const existingOrder = formattedOrders.find(o => o.id === log.service_order_id);
-            if (existingOrder && (log.findings || log.actions_taken)) {
+            if (existingOrder && log.problem && log.tindakan && log.signature_client) {
               existingOrder.has_technical_report = true;
-              console.log("✓ Order", existingOrder.order_number, "HAS technical report");
+              console.log("✓ Order", existingOrder.order_number, "HAS technical report (problem + tindakan + signature)");
+            } else if (existingOrder) {
+              console.log("⚠ Order", existingOrder.order_number, "incomplete:", {
+                problem: !!log.problem,
+                tindakan: !!log.tindakan,
+                signature: !!log.signature_client
+              });
             }
           });
           
