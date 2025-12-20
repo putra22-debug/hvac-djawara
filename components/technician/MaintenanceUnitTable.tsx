@@ -33,14 +33,16 @@ interface PhotoData {
 
 export interface MaintenanceUnitData {
   id: string;
-  ac_unit_id?: string; // NEW: Link to inventory
-  unit_code?: string; // NEW: From inventory
+  ac_unit_id?: string; // Link to inventory
+  unit_code?: string; // From inventory
   nama_ruang: string;
   merk_ac: string;
   kapasitas_ac: string;
   kondisi_ac: string;
+  status_ac: string; // NEW: "normal" or "optimasi"
+  catatan_rekomendasi: string; // NEW: Conditional based on status
   deskripsi_lain: string;
-  photos?: PhotoData[]; // NEW: 4 photos per unit
+  photos?: PhotoData[]; // 4 photos per unit
 }
 
 interface ACInventoryUnit {
@@ -153,7 +155,9 @@ export function MaintenanceUnitTable({
       nama_ruang: unit.location_detail || unit.property_name,
       merk_ac: unit.brand_model,
       kapasitas_ac: unit.capacity,
-      kondisi_ac: "kotor_sedang", // Default value
+      kondisi_ac: "kotor_sedang",
+      status_ac: "normal",
+      catatan_rekomendasi: "",
       deskripsi_lain: "",
       photos: [],
     };
@@ -169,7 +173,9 @@ export function MaintenanceUnitTable({
       nama_ruang: "",
       merk_ac: "",
       kapasitas_ac: "",
-      kondisi_ac: "kotor_sedang", // Default value
+      kondisi_ac: "kotor_sedang",
+      status_ac: "normal",
+      catatan_rekomendasi: "",
       deskripsi_lain: "",
       photos: [],
     };
@@ -437,7 +443,7 @@ export function MaintenanceUnitTable({
                       updateUnit(unit.id, "kondisi_ac", value)
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white">
                       <SelectValue placeholder="Pilih kondisi" />
                     </SelectTrigger>
                     <SelectContent>
@@ -449,6 +455,47 @@ export function MaintenanceUnitTable({
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="md:col-span-2">
+                  <Label>Status AC *</Label>
+                  <Select
+                    value={unit.status_ac}
+                    onValueChange={(value) => {
+                      updateUnit(unit.id, "status_ac", value);
+                      // Clear catatan_rekomendasi if status is normal
+                      if (value === "normal") {
+                        updateUnit(unit.id, "catatan_rekomendasi", "");
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Pilih status AC" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="normal">
+                        ✅ AC Beroperasi Normal (Selesai)
+                      </SelectItem>
+                      <SelectItem value="optimasi">
+                        ⚠️ AC Perlu Dioptimasi
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {unit.status_ac === "optimasi" && (
+                  <div className="md:col-span-2">
+                    <Label>Catatan Perbaikan / Rekomendasi *</Label>
+                    <Textarea
+                      value={unit.catatan_rekomendasi}
+                      onChange={(e) =>
+                        updateUnit(unit.id, "catatan_rekomendasi", e.target.value)
+                      }
+                      placeholder="Jelaskan masalah dan rekomendasi perbaikan yang diperlukan..."
+                      rows={3}
+                      className="bg-yellow-50 border-yellow-300"
+                    />
+                  </div>
+                )}
 
                 <div className="md:col-span-2">
                   <Label>Deskripsi Lain-lain</Label>
