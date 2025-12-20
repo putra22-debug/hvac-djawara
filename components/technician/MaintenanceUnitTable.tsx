@@ -224,58 +224,86 @@ export function MaintenanceUnitTable({
     
     // Auto upload each photo
     const supabase = createClient();
+    const startIndex = currentPhotos.length;
+    
     for (let i = 0; i < newPhotos.length; i++) {
+      const photoIndex = startIndex + i;
       const photo = newPhotos[i];
-      const photoIndex = currentPhotos.length + i;
+      
+      // Mark as uploading - CRITICAL: Use functional update
+      onChange(prevData => prevData.map(u => {
+        if (u.id !== unitId) return u;
+        const updatedPhotos = [...(u.photos || [])];
+        if (updatedPhotos[photoIndex]) {
+          updatedPhotos[photoIndex] = { ...updatedPhotos[photoIndex], uploading: true };
+        }
+        return { ...u, photos: updatedPhotos };
+      }));
       
       try {
-        // Mark this specific photo as uploading
-        const currentUnit = data.find(u => u.id === unitId);
-        if (currentUnit && currentUnit.photos && currentUnit.photos[photoIndex]) {
-          const updatedPhotos = [...currentUnit.photos];
-          updatedPhotos[photoIndex] = {
-            ...updatedPhotos[photoIndex],
-            uploading: true
-          };
-          onChange(data.map(u => 
-            u.id === unitId ? { ...u, photos: updatedPhotos } : u
-          ));
-        }
-        
         const fileExt = photo.file!.name.split(".").pop();
         const fileName = `${orderId}_unit_${unitId}_${Date.now()}_${i}.${fileExt}`;
         const filePath = `${technicianId}/${fileName}`;
         
-        const { error: uploadError } = await supabase.storage
+        console.log(`Uploading photo ${i + 1} for unit ${unitId} to:`, filePath);
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from("work-photos")
           .upload(filePath, photo.file!);
         
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error(`Upload error for photo ${i + 1}:`, uploadError);
+          throw uploadError;
+        }
+        
+        console.log(`Upload success for photo ${i + 1}:`, uploadData);
         
         const { data: { publicUrl } } = supabase.storage
           .from("work-photos")
           .getPublicUrl(filePath);
         
-        // Update with URL and mark as uploaded
-        const finalUnit = data.find(u => u.id === unitId);
-        if (finalUnit && finalUnit.photos && finalUnit.photos[photoIndex]) {
-          const updatedPhotos = [...finalUnit.photos];
-          updatedPhotos[photoIndex] = {
-            file: null,
-            preview: publicUrl,
-            caption: updatedPhotos[photoIndex].caption || "",
-            uploading: false,
-            uploaded: true,
-          };
-          onChange(data.map(u => 
-            u.id === unitId ? { ...u, photos: updatedPhotos } : u
-          ));
-        }
+        console.log(`Public URL for photo ${i + 1}:`, publicUrl);
+        
+        // Update with URL and mark as uploaded - CRITICAL: Use functional update
+        onChange(prevData => prevData.map(u => {
+          if (u.id !== unitId) return u;
+          const updatedPhotos = [...(u.photos || [])];
+          if (updatedPhotos[photoIndex]) {
+            // Revoke old blob URL
+            const oldPreview = updatedPhotos[photoIndex].preview;
+            if (oldPreview && oldPreview.startsWith('blob:')) {
+              URL.revokeObjectURL(oldPreview);
+            }
+            
+            updatedPhotos[photoIndex] = {
+              file: null,
+              preview: publicUrl,
+              caption: updatedPhotos[photoIndex].caption || "",
+              uploading: false,
+              uploaded: true,
+            };
+          }
+          return { ...u, photos: updatedPhotos };
+        }));
         
         toast.success(`Foto ${i + 1} berhasil diupload`);
       } catch (error: any) {
-        console.error("Upload error:", error);
-        toast.error(`Gagal upload foto: ${error.message}`);
+        console.error(`Upload error for photo ${i + 1}:`, error);
+        toast.error(`Gagal upload foto ${i + 1}: ${error.message || 'Unknown error'}`);
+        
+        // Mark as failed - CRITICAL: Use functional update
+        onChange(prevData => prevData.map(u => {
+          if (u.id !== unitId) return u;
+          const updatedPhotos = [...(u.photos || [])];
+          if (updatedPhotos[photoIndex]) {
+            updatedPhotos[photoIndex] = { 
+              ...updatedPhotos[photoIndex], 
+              uploading: false, 
+              uploaded: false 
+            };
+          }
+          return { ...u, photos: updatedPhotos };
+        }));
       }
     }
   };
