@@ -1465,12 +1465,22 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
               location: formData.alamat_lokasi,
               scheduled_date: new Date().toISOString(),
               technician_name: technicianName,
+              
+              // Conditional data based on work_type
+              work_type: workType,
+              check_type: checkType,
+              ac_units_data: workType === 'pengecekan' && checkType === 'performa' ? acUnits : undefined,
+              maintenance_units_data: workType === 'pemeliharaan' ? maintenanceUnits : undefined,
+              
+              // Traditional fields (for troubleshooting/instalasi/lain-lain)
               problem: formData.problem,
               tindakan: formData.tindakan,
               rincian_pekerjaan: formData.rincian_pekerjaan,
               rincian_kerusakan: formData.rincian_kerusakan,
+              catatan_rekomendasi: formData.catatan_rekomendasi,
               lama_kerja: formData.lama_kerja ? parseFloat(formData.lama_kerja) : undefined,
               jarak_tempuh: formData.jarak_tempuh ? parseFloat(formData.jarak_tempuh) : undefined,
+              
               spareparts: spareparts.map(sp => ({
                 name: sp.name,
                 quantity: sp.quantity,
@@ -1496,7 +1506,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
             
             toast.success("PDF berhasil diunduh!");
           }}
-          disabled={!formData.problem || !formData.tindakan}
+          disabled={!workType || !technicianName || !clientName}
         >
           <Upload className="mr-2 h-5 w-5" />
           Export PDF
