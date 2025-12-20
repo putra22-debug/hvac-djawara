@@ -142,11 +142,12 @@ export default function TechnicianDashboard() {
           console.error("Work logs error:", logsError);
         }
 
-        // Mark orders that have technical reports (check if problem/tindakan AND signature exist)
+        // Mark orders that have technical reports (check if signature exists)
         if (workLogsData && workLogsData.length > 0) {
           workLogsData.forEach((log: any) => {
             const existingOrder = formattedOrders.find(o => o.id === log.service_order_id);
-            if (existingOrder && log.problem && log.tindakan && log.signature_client) {
+            // Has technical report if has client signature (regardless of work type)
+            if (existingOrder && log.signature_client) {
               existingOrder.has_technical_report = true;
               console.log("✓ Order", existingOrder.order_number, "HAS technical report (problem + tindakan + signature)");
             } else if (existingOrder) {
