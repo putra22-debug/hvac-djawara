@@ -11,7 +11,6 @@ ALTER TABLE client_documents
   REFERENCES service_orders(id)
   ON DELETE CASCADE;
 
--- Also check and fix other tables that might reference service_orders
 -- Fix technician_work_logs foreign key
 ALTER TABLE technician_work_logs
   DROP CONSTRAINT IF EXISTS technician_work_logs_service_order_id_fkey;
@@ -19,16 +18,6 @@ ALTER TABLE technician_work_logs
 ALTER TABLE technician_work_logs
   ADD CONSTRAINT technician_work_logs_service_order_id_fkey
   FOREIGN KEY (service_order_id)
-  REFERENCES service_orders(id)
-  ON DELETE CASCADE;
-
--- Fix technician_assignments foreign key
-ALTER TABLE technician_assignments
-  DROP CONSTRAINT IF EXISTS technician_assignments_order_id_fkey;
-
-ALTER TABLE technician_assignments
-  ADD CONSTRAINT technician_assignments_order_id_fkey
-  FOREIGN KEY (order_id)
   REFERENCES service_orders(id)
   ON DELETE CASCADE;
 
@@ -48,7 +37,13 @@ SELECT
   conname AS constraint_name,
   conrelid::regclass AS table_name,
   confrelid::regclass AS referenced_table,
-  confdeltype AS on_delete_action
+  CASE confdeltype
+    WHEN 'a' THEN 'NO ACTION'
+    WHEN 'r' THEN 'RESTRICT'
+    WHEN 'c' THEN 'CASCADE'
+    WHEN 'n' THEN 'SET NULL'
+    WHEN 'd' THEN 'SET DEFAULT'
+  END AS on_delete_action
 FROM pg_constraint
 WHERE confrelid = 'service_orders'::regclass
   AND contype = 'f'
