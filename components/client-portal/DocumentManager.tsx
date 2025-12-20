@@ -495,22 +495,6 @@ export function DocumentManager({ clientId }: DocumentManagerProps) {
                         >
                           <Download className="w-4 h-4" />
                         </Button>
-                              const a = document.createElement('a');
-                              a.href = url;
-                              a.download = `${doc.document_name}.pdf`;
-                              document.body.appendChild(a);
-                              a.click();
-                              document.body.removeChild(a);
-                              URL.revokeObjectURL(url);
-                            } catch (err) {
-                              console.error('Error generating PDF:', err);
-                              alert('Gagal generate PDF. Silakan coba lagi.');
-                            }
-                          }}
-                          title="Download PDF"
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
                       ) : (
                         <Button
                           size="sm"
