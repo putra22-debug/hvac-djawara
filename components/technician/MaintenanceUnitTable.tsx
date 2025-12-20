@@ -153,7 +153,7 @@ export function MaintenanceUnitTable({
       nama_ruang: unit.location_detail || unit.property_name,
       merk_ac: unit.brand_model,
       kapasitas_ac: unit.capacity,
-      kondisi_ac: "",
+      kondisi_ac: "kotor_sedang", // Default value
       deskripsi_lain: "",
       photos: [],
     };
@@ -162,13 +162,14 @@ export function MaintenanceUnitTable({
     setSearchQuery("");
     toast.success(`Unit ${unit.unit_code} ditambahkan`);
   };
+  
   const addUnit = () => {
     const newUnit: MaintenanceUnitData = {
       id: `maintenance-${Date.now()}`,
       nama_ruang: "",
       merk_ac: "",
       kapasitas_ac: "",
-      kondisi_ac: "",
+      kondisi_ac: "kotor_sedang", // Default value
       deskripsi_lain: "",
       photos: [],
     };
