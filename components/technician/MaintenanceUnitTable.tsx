@@ -91,11 +91,28 @@ export function MaintenanceUnitTable({
       setLoading(true);
       const supabase = createClient();
       
+      // First, get client_id from the order
+      const { data: orderData, error: orderError } = await supabase
+        .from("service_orders")
+        .select("client_id")
+        .eq("id", orderId)
+        .single();
+      
+      if (orderError) throw orderError;
+      
+      if (!orderData?.client_id) {
+        toast.error("Client tidak ditemukan");
+        return;
+      }
+      
+      // Then fetch AC units for that client only
       const { data: inventoryData, error } = await supabase
         .from("ac_units")
         .select(`
           id,
           unit_code,
+          unit_name,
+          room_name,
           client_properties!inner(property_name),
           location_detail,
           brand,
@@ -103,6 +120,8 @@ export function MaintenanceUnitTable({
           capacity_pk,
           ac_type
         `)
+        .eq("client_id", orderData.client_id)
+        .eq("is_active", true)
         .order("unit_code");
       
       if (error) throw error;
@@ -111,7 +130,7 @@ export function MaintenanceUnitTable({
         id: item.id,
         unit_code: item.unit_code || "",
         property_name: item.client_properties?.property_name || "",
-        location_detail: item.location_detail || "",
+        location_detail: item.room_name || item.unit_name || item.location_detail || "",
         brand_model: `${item.brand || ""} ${item.model || ""}`.trim(),
         capacity: item.capacity_pk ? `${item.capacity_pk} PK` : "",
         ac_type: item.ac_type || "",
@@ -305,19 +324,32 @@ export function MaintenanceUnitTable({
                       filteredInventory.map((unit) => (
                         <div
                           key={unit.id}
-                          className="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer"
+                          className="border rounded-lg p-4 hover:bg-blue-50 cursor-pointer transition-colors"
                           onClick={() => selectFromInventory(unit)}
                         >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium text-blue-600">{unit.unit_code}</p>
-                              <p className="text-sm text-gray-600">{unit.property_name}</p>
-                              <p className="text-xs text-gray-500">{unit.location_detail}</p>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-bold text-blue-600 text-lg">{unit.unit_code}</p>
+                                <p className="text-sm font-medium text-gray-700">{unit.property_name}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                  {unit.capacity}
+                                </span>
+                              </div>
                             </div>
-                            <div className="text-right text-sm">
-                              <p className="font-medium">{unit.brand_model}</p>
-                              <p className="text-gray-600">{unit.capacity}</p>
-                              <p className="text-xs text-gray-500">{unit.ac_type}</p>
+                            
+                            {unit.location_detail && (
+                              <div className="flex items-start gap-2 bg-gray-50 p-2 rounded">
+                                <span className="text-xs font-medium text-gray-500">📍 Lokasi:</span>
+                                <p className="text-sm font-medium text-gray-700">{unit.location_detail}</p>
+                              </div>
+                            )}
+                            
+                            <div className="flex justify-between items-center pt-2 border-t">
+                              <p className="text-sm text-gray-600">{unit.brand_model}</p>
+                              <p className="text-xs text-gray-500 uppercase">{unit.ac_type}</p>
                             </div>
                           </div>
                         </div>
