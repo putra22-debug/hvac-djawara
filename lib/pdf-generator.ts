@@ -24,12 +24,12 @@ function loadImage(url: string): Promise<string> {
 }
 
 interface WorkLogData {
-  order_number: string;
-  service_title: string;
-  client_name: string;
+  orderNumber: string;
+  serviceTitle: string;
+  clientName: string;
   location: string;
-  scheduled_date: string;
-  technician_name: string;
+  scheduledDate: string;
+  technicianName: string;
   problem: string;
   tindakan: string;
   rincian_pekerjaan?: string;
@@ -43,12 +43,12 @@ interface WorkLogData {
     notes?: string;
   }>;
   photos?: string[];
-  photo_captions?: string[];
-  signature_technician?: string;
-  signature_client?: string;
-  signature_technician_name?: string;
-  signature_client_name?: string;
-  signature_date?: string;
+  photoCaptions?: string[];
+  signatureTechnician?: string;
+  signatureClient?: string;
+  signatureTechnicianName?: string;
+  signatureClientName?: string;
+  signatureDate?: string;
 }
 
 export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blob> {
@@ -77,17 +77,17 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`No. Order: ${data.order_number}`, 25, yPos);
+  doc.text(`No. Order: ${data.orderNumber}`, 25, yPos);
   yPos += 6;
-  doc.text(`Layanan: ${data.service_title}`, 25, yPos);
+  doc.text(`Layanan: ${data.serviceTitle}`, 25, yPos);
   yPos += 6;
-  doc.text(`Klien: ${data.client_name}`, 25, yPos);
+  doc.text(`Klien: ${data.clientName}`, 25, yPos);
   yPos += 6;
   doc.text(`Lokasi: ${data.location}`, 25, yPos);
   yPos += 6;
-  doc.text(`Tanggal: ${new Date(data.scheduled_date).toLocaleDateString("id-ID")}`, 25, yPos);
+  doc.text(`Tanggal: ${new Date(data.scheduledDate).toLocaleDateString("id-ID")}`, 25, yPos);
   yPos += 6;
-  doc.text(`Teknisi: ${data.technician_name}`, 25, yPos);
+  doc.text(`Teknisi: ${data.technicianName}`, 25, yPos);
   yPos += 10;
   
   // Technical Details
@@ -177,7 +177,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     let col = 0;
     for (let i = 0; i < data.photos.length; i++) {
       const photo = data.photos[i];
-      const caption = data.photo_captions?.[i] || `Foto ${i + 1}`;
+      const caption = data.photoCaptions?.[i] || `Foto ${i + 1}`;
       
       const xPos = col === 0 ? 20 : 110;
       
@@ -231,29 +231,29 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   
   // Technician signature
   doc.setFont("helvetica", "normal");
-  if (data.signature_technician) {
+  if (data.signatureTechnician) {
     try {
-      doc.addImage(data.signature_technician, "PNG", 25, yPos, 50, 20);
+      doc.addImage(data.signatureTechnician, "PNG", 25, yPos, 50, 20);
     } catch (e) {
       console.error("Failed to add technician signature:", e);
     }
   }
   doc.text("Teknisi", 25, yPos + 25);
-  doc.text(data.signature_technician_name || data.technician_name, 25, yPos + 31);
+  doc.text(data.signatureTechnicianName || data.technicianName || '', 25, yPos + 31);
   
   // Client signature
-  if (data.signature_client) {
+  if (data.signatureClient) {
     try {
-      doc.addImage(data.signature_client, "PNG", 125, yPos, 50, 20);
+      doc.addImage(data.signatureClient, "PNG", 125, yPos, 50, 20);
     } catch (e) {
       console.error("Failed to add client signature:", e);
     }
   }
   doc.text("Klien / PIC", 125, yPos + 25);
-  doc.text(data.signature_client_name || "", 125, yPos + 31);
+  doc.text(data.signatureClientName || "", 125, yPos + 31);
   
   yPos += 35;
-  doc.text(`Tanggal: ${data.signature_date ? new Date(data.signature_date).toLocaleDateString("id-ID") : ""}`, 25, yPos);
+  doc.text(`Tanggal: ${data.signatureDate ? new Date(data.signatureDate).toLocaleDateString("id-ID") : ""}`, 25, yPos);
   
   // Footer
   const pageCount = doc.getNumberOfPages();
