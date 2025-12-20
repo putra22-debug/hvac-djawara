@@ -6,21 +6,29 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { generateTechnicalReportPDF } from '@/lib/pdf-generator'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 export async function GET(
   request: Request,
   { params }: { params: { orderId: string } }
 ) {
   try {
-    const supabase = await createClient()
-    
-    // Get user (may be null for public client access)
-    const { data: { user } } = await supabase.auth.getUser()
+    // Use service role client to bypass RLS for PDF generation
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
     
     const orderId = params.orderId
     
-    // Fetch work log with all data
-    const { data: workLog, error } = await supabase
+    // Fetch work log with all data using admin client (bypasses RLS)
+    const { data: workLog, error } = await supabaseAdmin
       .from('technician_work_logs')
       .select(`
         *,
@@ -44,32 +52,18 @@ export async function GET(
       .single()
     
     if (error || !workLog) {
+      console.error('Work log not found:', error);
       return NextResponse.json(
         { error: 'Technical report not found' },
         { status: 404 }
       )
     }
     
-    // Fetch spareparts
-    const { data: spareparts } = await supabase
+    // Fetch spareparts using admin client
+    const { data: spareparts } = await supabaseAdmin
       .from('work_order_spareparts')
       .select('*')
       .eq('work_log_id', workLog.id)
-    
-    // Check access: allow if:
-    // 1. Authenticated user (RLS will handle permissions)
-    // 2. Unauthenticated public access for completed orders (public client portal)
-    
-    if (user) {
-      // For authenticated users, just verify they have some access
-      // RLS policies will handle the actual permission check
-      console.log('Authenticated user accessing PDF:', user.id);
-    } else {
-      // Unauthenticated access - allow for completed orders
-      console.log('Public access to PDF for order:', orderId);
-    }
-    // If no user (public access), allow download for completed orders only
-    // This allows public client portal (with token) to download reports
     
     // Generate PDF
     const pdfData = {

@@ -583,34 +583,61 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
           .eq('id', orderId)
           .single();
         
-        if (orderData) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('active_tenant_id')
-            .eq('id', (await supabase.auth.getUser()).data.user?.id)
-            .single();
+        if (orderData && orderData.client_id) {
+          // Get current user for uploaded_by
+          const { data: { user } } = await supabase.auth.getUser();
           
-          // Create document record (file will be generated on-demand)
-          await supabase
+          // Check if document already exists
+          const { data: existingDoc } = await supabase
             .from('client_documents')
-            .upsert({
-              client_id: orderData.client_id,
-              tenant_id: orderData.tenant_id || profileData?.active_tenant_id,
-              document_name: `Laporan Teknis - ${orderData.order_number}`,
-              document_type: 'bast',
-              file_path: `technical-reports/${orderId}.pdf`,
-              file_type: 'application/pdf',
-              document_number: orderData.order_number,
-              document_date: new Date().toISOString().split('T')[0],
-              related_order_id: orderId,
-              status: 'active',
-              uploaded_by: (await supabase.auth.getUser()).data.user?.id,
-              uploaded_at: new Date().toISOString(),
-            }, {
-              onConflict: 'related_order_id,document_type'
-            });
+            .select('id')
+            .eq('related_order_id', orderId)
+            .eq('document_type', 'bast')
+            .maybeSingle();
           
-          console.log('✓ Client document entry created for order', orderData.order_number);
+          if (existingDoc) {
+            // Update existing document
+            const { error: updateError } = await supabase
+              .from('client_documents')
+              .update({
+                document_name: `Laporan Teknis - ${orderData.order_number}`,
+                document_date: new Date().toISOString().split('T')[0],
+                status: 'active',
+              })
+              .eq('id', existingDoc.id);
+            
+            if (updateError) {
+              console.error('Document update error:', updateError);
+            } else {
+              console.log('✓ Client document updated for order', orderData.order_number);
+            }
+          } else {
+            // Insert new document
+            const { error: insertError } = await supabase
+              .from('client_documents')
+              .insert({
+                client_id: orderData.client_id,
+                tenant_id: orderData.tenant_id,
+                document_name: `Laporan Teknis - ${orderData.order_number}`,
+                document_type: 'bast',
+                file_path: `technical-reports/${orderId}.pdf`,
+                file_type: 'application/pdf',
+                file_size: 0,
+                document_number: orderData.order_number,
+                document_date: new Date().toISOString().split('T')[0],
+                related_order_id: orderId,
+                status: 'active',
+                uploaded_by: user?.id || null,
+              });
+            
+            if (insertError) {
+              console.error('Document insert error:', insertError);
+            } else {
+              console.log('✓ Client document created for order', orderData.order_number);
+            }
+          }
+        } else {
+          console.warn('Order data incomplete, skipping document creation');
         }
       } catch (docErr) {
         console.error('Failed to create document entry (non-critical):', docErr);
