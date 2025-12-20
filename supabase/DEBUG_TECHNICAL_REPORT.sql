@@ -12,10 +12,10 @@ SELECT
   signature_client,
   signature_technician,
   completed_at,
-  created_at
+  timestamp
 FROM technician_work_logs
-WHERE service_order_id = 'YOUR_ORDER_ID_HERE'  -- Replace with actual order ID
-ORDER BY created_at DESC
+WHERE service_order_id = 'YOUR_ORDER_ID_HERE'  -- Replace with actual order ID (e.g., from SO-202512-0024)
+ORDER BY timestamp DESC
 LIMIT 1;
 
 -- 2. Check if client_documents entry was created

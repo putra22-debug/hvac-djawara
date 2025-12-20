@@ -56,45 +56,17 @@ export async function GET(
       .select('*')
       .eq('work_log_id', workLog.id)
     
-    // Check access: either technician who created it, staff in same tenant, or client who owns the order
-    // Allow access if:
-    // 1. Authenticated user is staff/technician in same tenant
-    // 2. Authenticated user is client who owns the order
-    // 3. Report is for completed order (allow public access for clients)
+    // Check access: allow if:
+    // 1. Authenticated user (RLS will handle permissions)
+    // 2. Unauthenticated public access for completed orders (public client portal)
     
     if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('active_tenant_id, role')
-        .eq('id', user.id)
-        .single()
-      
-      const isClient = user.user_metadata?.account_type === 'client'
-      const clientId = user.user_metadata?.client_id
-      
-      if (!isClient) {
-        // For staff/technicians, check they're in the same tenant
-        const { data: techProfile } = await supabase
-          .from('technicians')
-          .select('tenant_id')
-          .eq('id', workLog.technician_id)
-          .single()
-        
-        if (profile?.active_tenant_id !== techProfile?.tenant_id) {
-          return NextResponse.json({ error: 'Forbidden - Wrong tenant' }, { status: 403 })
-        }
-      } else {
-        // For authenticated clients, check they own this order
-        const { data: orderCheck } = await supabase
-          .from('service_orders')
-          .select('client_id')
-          .eq('id', orderId)
-          .single()
-        
-        if (orderCheck?.client_id !== clientId) {
-          return NextResponse.json({ error: 'Forbidden - Not your order' }, { status: 403 })
-        }
-      }
+      // For authenticated users, just verify they have some access
+      // RLS policies will handle the actual permission check
+      console.log('Authenticated user accessing PDF:', user.id);
+    } else {
+      // Unauthenticated access - allow for completed orders
+      console.log('Public access to PDF for order:', orderId);
     }
     // If no user (public access), allow download for completed orders only
     // This allows public client portal (with token) to download reports

@@ -131,6 +131,7 @@ export default function TechnicianDashboard() {
 
       // Try to fetch work logs with technical reports (don't break if fails)
       try {
+        const technicianId = techData.id; // Use techData.id from earlier query
         const { data: workLogsData, error: logsError } = await supabase
           .from("technician_work_logs")
           .select("service_order_id, completed_at, problem, tindakan, signature_client")

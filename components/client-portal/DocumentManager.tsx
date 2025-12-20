@@ -85,7 +85,13 @@ export function DocumentManager({ clientId }: DocumentManagerProps) {
         .from('client_documents')
         .select(`
           *,
-          profiles!client_documents_uploaded_by_fkey (full_name)
+          profiles!client_documents_uploaded_by_fkey (full_name),
+          service_orders!client_documents_related_order_id_fkey (
+            order_number,
+            service_title,
+            status,
+            scheduled_date
+          )
         `)
         .eq('client_id', clientId)
         .eq('status', 'active')
@@ -95,7 +101,8 @@ export function DocumentManager({ clientId }: DocumentManagerProps) {
 
       const formatted = data?.map(d => ({
         ...d,
-        uploaded_by_name: d.profiles?.full_name || 'System'
+        uploaded_by_name: d.profiles?.full_name || 'System',
+        order_info: d.service_orders
       })) || []
 
       setDocuments(formatted)
@@ -403,8 +410,24 @@ export function DocumentManager({ clientId }: DocumentManagerProps) {
                             {getDocumentLabel(doc.document_type)}
                           </span>
                         </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600">
+                                                {/* Show order info if available */}
+                        {doc.order_info && (
+                          <div className="mb-2">
+                            <p className="text-sm text-gray-700">
+                              <span className="font-medium">{doc.order_info.order_number}</span> - {doc.order_info.service_title}
+                            </p>
+                            {doc.order_info.scheduled_date && (
+                              <p className="text-xs text-gray-500">
+                                {new Date(doc.order_info.scheduled_date).toLocaleDateString('id-ID', {
+                                  day: 'numeric',
+                                  month: 'long',
+                                  year: 'numeric'
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600">
                           {doc.document_number && (
                             <div>
                               <span className="text-gray-500">No: </span>
