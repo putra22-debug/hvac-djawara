@@ -760,8 +760,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         const { error: orderUpdateError } = await supabase
           .from('service_orders')
           .update({ 
-            status: 'completed',
-            completed_at: now
+            status: 'completed'
           })
           .eq('id', orderId);
         
@@ -776,8 +775,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
           await supabase
             .from('technician_assignments')
             .update({ 
-              status: 'completed',
-              completed_at: now
+              status: 'completed'
             })
             .eq('id', assignmentId);
           console.log('✓ Assignment status updated');
