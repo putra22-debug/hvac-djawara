@@ -218,20 +218,28 @@ export function MaintenanceUnitTable({
       uploaded: false,
     }));
     
-    updateUnit(unitId, "photos", [...currentPhotos, ...newPhotos]);
+    // Add photos immediately to state
+    const allPhotos = [...currentPhotos, ...newPhotos];
+    updateUnit(unitId, "photos", allPhotos);
     
-    // Auto upload
+    // Auto upload each photo
     const supabase = createClient();
     for (let i = 0; i < newPhotos.length; i++) {
       const photo = newPhotos[i];
       const photoIndex = currentPhotos.length + i;
       
       try {
-        // Mark uploading
-        const updatedUnit = data.find(u => u.id === unitId);
-        if (updatedUnit && updatedUnit.photos) {
-          updatedUnit.photos[photoIndex].uploading = true;
-          updateUnit(unitId, "photos", [...updatedUnit.photos]);
+        // Mark this specific photo as uploading
+        const currentUnit = data.find(u => u.id === unitId);
+        if (currentUnit && currentUnit.photos && currentUnit.photos[photoIndex]) {
+          const updatedPhotos = [...currentUnit.photos];
+          updatedPhotos[photoIndex] = {
+            ...updatedPhotos[photoIndex],
+            uploading: true
+          };
+          onChange(data.map(u => 
+            u.id === unitId ? { ...u, photos: updatedPhotos } : u
+          ));
         }
         
         const fileExt = photo.file!.name.split(".").pop();
@@ -248,20 +256,23 @@ export function MaintenanceUnitTable({
           .from("work-photos")
           .getPublicUrl(filePath);
         
-        // Update with URL
+        // Update with URL and mark as uploaded
         const finalUnit = data.find(u => u.id === unitId);
-        if (finalUnit && finalUnit.photos) {
-          finalUnit.photos[photoIndex] = {
+        if (finalUnit && finalUnit.photos && finalUnit.photos[photoIndex]) {
+          const updatedPhotos = [...finalUnit.photos];
+          updatedPhotos[photoIndex] = {
             file: null,
             preview: publicUrl,
-            caption: "",
+            caption: updatedPhotos[photoIndex].caption || "",
             uploading: false,
             uploaded: true,
           };
-          updateUnit(unitId, "photos", [...finalUnit.photos]);
+          onChange(data.map(u => 
+            u.id === unitId ? { ...u, photos: updatedPhotos } : u
+          ));
         }
         
-        toast.success(`Foto ${i + 1} unit berhasil diupload`);
+        toast.success(`Foto ${i + 1} berhasil diupload`);
       } catch (error: any) {
         console.error("Upload error:", error);
         toast.error(`Gagal upload foto: ${error.message}`);
