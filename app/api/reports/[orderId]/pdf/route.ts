@@ -1,20 +1,18 @@
 // ============================================
-// API: Generate Technical Report PDF
-// Generate PDF for client download
+// API: Get Technical Report Data (JSON)
+// Client will generate PDF using jsPDF
 // ============================================
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-import { generateTechnicalReportPDF } from '@/lib/pdf-generator'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 export async function GET(
   request: Request,
   { params }: { params: { orderId: string } }
 ) {
   try {
-    // Use service role client to bypass RLS for PDF generation
-    const supabaseAdmin = createAdminClient(
+    // Use service role client to bypass RLS
+    const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       {
@@ -36,6 +34,7 @@ export async function GET(
           order_number,
           service_title,
           location_address,
+          scheduled_date,
           clients (
             name,
             phone,
@@ -65,43 +64,42 @@ export async function GET(
       .select('*')
       .eq('work_log_id', workLog.id)
     
-    // Generate PDF
-    const pdfData = {
+    // Return JSON data for client-side PDF generation
+    const reportData = {
       orderNumber: workLog.service_orders?.order_number || 'N/A',
+      serviceTitle: workLog.service_orders?.service_title || 'N/A',
       clientName: workLog.service_orders?.clients?.name || 'N/A',
       clientPhone: workLog.service_orders?.clients?.phone || '',
-      clientAddress: workLog.service_orders?.clients?.address || workLog.service_orders?.location_address || '',
-      serviceTitle: workLog.service_orders?.service_title || 'N/A',
-      findings: workLog.findings || '',
-      actionsTaken: workLog.actions_taken || '',
-      workDuration: workLog.work_duration?.toString() || '',
-      distance: workLog.travel_distance?.toString() || '',
-      additionalNotes: workLog.additional_notes || '',
-      repairNotes: workLog.repair_notes || '',
+      location: workLog.service_orders?.location_address || workLog.service_orders?.clients?.address || '',
+      scheduledDate: workLog.service_orders?.scheduled_date || new Date().toISOString(),
+      technicianName: workLog.technicians?.full_name || workLog.signature_technician_name || '',
+      problem: workLog.problem || '',
+      tindakan: workLog.tindakan || '',
+      rincian_pekerjaan: workLog.rincian_pekerjaan || '',
+      rincian_kerusakan: workLog.rincian_kerusakan || '',
+      lama_kerja: workLog.lama_kerja || 0,
+      jarak_tempuh: workLog.jarak_tempuh || 0,
+      spareparts: (spareparts || []).map(sp => ({
+        name: sp.sparepart_name,
+        quantity: sp.quantity,
+        unit: sp.unit,
+        notes: sp.notes || ''
+      })),
       photos: workLog.documentation_photos || [],
       photoCaptions: workLog.photo_captions || [],
-      spareparts: spareparts || [],
-      technicianSignature: workLog.signature_technician,
-      clientSignature: workLog.signature_client,
-      technicianName: workLog.technicians?.full_name || workLog.signature_technician_name || '',
-      clientName: workLog.signature_client_name || workLog.service_orders?.clients?.name || '',
+      signatureTechnician: workLog.signature_technician,
+      signatureClient: workLog.signature_client,
+      signatureTechnicianName: workLog.signature_technician_name || workLog.technicians?.full_name || '',
+      signatureClientName: workLog.signature_client_name || workLog.service_orders?.clients?.name || '',
       signatureDate: workLog.signature_date || new Date().toISOString(),
     }
     
-    const pdfBlob = await generateTechnicalReportPDF(pdfData)
-    
-    // Return PDF
-    return new NextResponse(pdfBlob, {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="Laporan-Teknis-${workLog.service_orders?.order_number}.pdf"`,
-      },
-    })
+    return NextResponse.json(reportData)
     
   } catch (error) {
-    console.error('Error generating PDF:', error)
+    console.error('Error fetching report data:', error)
     return NextResponse.json(
-      { error: 'Failed to generate PDF' },
+      { error: 'Failed to fetch report data', details: String(error) },
       { status: 500 }
     )
   }

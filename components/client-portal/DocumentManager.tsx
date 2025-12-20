@@ -457,21 +457,41 @@ export function DocumentManager({ clientId }: DocumentManagerProps) {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {/* If it's a BAST technical report, use API route */}
+                      {/* If it's a BAST technical report, fetch data and generate PDF client-side */}
                       {doc.document_type === 'bast' && doc.related_order_id ? (
-                        <a
-                          href={`/api/reports/${doc.related_order_id}/pdf`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={async () => {
+                            try {
+                              // Fetch report data
+                              const response = await fetch(`/api/reports/${doc.related_order_id}/pdf`);
+                              if (!response.ok) throw new Error('Failed to fetch report data');
+                              
+                              const data = await response.json();
+                              
+                              // Dynamic import to avoid SSR issues
+                              const { generateTechnicalReportPDF } = await import('@/lib/pdf-generator');
+                              const pdfBlob = await generateTechnicalReportPDF(data);
+                              
+                              // Download PDF
+                              const url = URL.createObjectURL(pdfBlob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `${doc.document_name}.pdf`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+                            } catch (err) {
+                              console.error('Error generating PDF:', err);
+                              alert('Gagal generate PDF. Silakan coba lagi.');
+                            }
+                          }}
+                          title="Download PDF"
                         >
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            title="Download PDF"
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        </a>
+                          <Download className="w-4 h-4" />
+                        </Button>
                       ) : (
                         <Button
                           size="sm"
