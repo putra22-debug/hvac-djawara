@@ -603,6 +603,24 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
       const signatureTechnician = sigTechnicianRef.current?.toDataURL() || "";
       const signatureClient = sigClientRef.current?.toDataURL() || "";
       
+      // Sanitize maintenance units data - only keep uploaded photos
+      const sanitizedMaintenanceUnits = maintenanceUnits.map(unit => {
+        const cleanUnit = { ...unit };
+        if (cleanUnit.photos) {
+          // Only keep photos that are uploaded (have public URL from Supabase)
+          cleanUnit.photos = cleanUnit.photos
+            .filter(photo => photo.uploaded && photo.preview && !photo.preview.startsWith('blob:'))
+            .map(photo => ({
+              file: null,
+              preview: photo.preview, // This is now the Supabase public URL
+              caption: photo.caption,
+              uploaded: true,
+              uploading: false
+            }));
+        }
+        return cleanUnit;
+      });
+      
       // Prepare data
       const workLogData = {
         service_order_id: orderId,
@@ -614,7 +632,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         work_type: workType,
         check_type: checkType || null,
         ac_units_data: workType === 'pengecekan' && checkType === 'performa' ? acUnits : null,
-        maintenance_units_data: workType === 'pemeliharaan' ? maintenanceUnits : null,
+        maintenance_units_data: workType === 'pemeliharaan' ? sanitizedMaintenanceUnits : null,
         
         // BAST fields
         nama_personal: formData.nama_personal,
