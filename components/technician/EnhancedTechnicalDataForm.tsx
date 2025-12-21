@@ -652,7 +652,12 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         // NEW: Conditional form data
         work_type: workType,
         check_type: checkType || null,
-        ac_units_data: workType === 'pengecekan' && checkType === 'performa' ? acUnits : null,
+        // Save AC units data for pengecekan performa, troubleshooting, or instalasi
+        ac_units_data: (
+          (workType === 'pengecekan' && checkType === 'performa') ||
+          workType === 'troubleshooting' ||
+          workType === 'instalasi'
+        ) ? acUnits : null,
         maintenance_units_data: workType === 'pemeliharaan' ? sanitizedMaintenanceUnits : null,
         
         // BAST fields
@@ -693,6 +698,14 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
         report_type: 'bast'
       };
       
+      console.log('💾 Saving work log data:', {
+        work_type: workLogData.work_type,
+        check_type: workLogData.check_type,
+        ac_units_count: workLogData.ac_units_data?.length || 0,
+        maintenance_units_count: workLogData.maintenance_units_data?.length || 0,
+        has_signatures: !!(workLogData.signature_technician && workLogData.signature_client)
+      });
+      
       // Check if work log exists
       const { data: existingLog } = await supabase
         .from("technician_work_logs")
@@ -705,6 +718,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
       
       if (existingLog) {
         // Update existing log
+        console.log('📝 Updating existing work log:', existingLog.id);
         const { error } = await supabase
           .from("technician_work_logs")
           .update(workLogData)
@@ -714,9 +728,11 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
           console.error("Update error:", error);
           throw error;
         }
+        console.log('✅ Work log updated successfully');
         workLogId = existingLog.id;
       } else {
         // Insert new log
+        console.log('📝 Creating new work log');
         const { data, error } = await supabase
           .from("technician_work_logs")
           .insert([workLogData])
@@ -727,6 +743,7 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
           console.error("Insert error:", error);
           throw error;
         }
+        console.log('✅ Work log created successfully:', data?.id);
         workLogId = data?.id;
       }
       
