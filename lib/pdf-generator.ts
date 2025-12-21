@@ -193,10 +193,13 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   // Prepare table data based on work type
   let tableData: any[][] = [];
   
-  // Basic info rows
-  if (data.rincian_pekerjaan) {
-    tableData.push(["Jenis Pekerjaan", data.rincian_pekerjaan]);
-  }
+  // ALWAYS add work type info
+  const workTypeLabel = data.work_type === 'pemeliharaan' ? 'Pemeliharaan AC' :
+                       data.work_type === 'pengecekan' ? 'Pengecekan Performa AC' :
+                       data.work_type === 'troubleshooting' ? 'Troubleshooting' :
+                       data.work_type === 'instalasi' ? 'Instalasi AC' :
+                       data.rincian_pekerjaan || 'Lain-lain';
+  tableData.push(["Jenis Pekerjaan", workTypeLabel]);
   
   // Waktu & Tanggal pengerjaan
   if (data.lama_kerja || data.jarak_tempuh) {
@@ -259,46 +262,44 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     tableData.push(["Catatan / Rekomendasi", data.catatan_rekomendasi]);
   }
   
-  // Create table
-  if (tableData.length > 0) {
-    autoTable(doc, {
-      startY: yPos,
-      body: tableData,
-      theme: "grid",
-      styles: {
-        fontSize: 9,
-        cellPadding: 4,
-        lineColor: colors.primary,
-        lineWidth: 0.5,
+  // Create table (ALWAYS - we now have at least work_type)
+  autoTable(doc, {
+    startY: yPos,
+    body: tableData,
+    theme: "grid",
+    styles: {
+      fontSize: 9,
+      cellPadding: 4,
+      lineColor: colors.primary,
+      lineWidth: 0.5,
+    },
+    columnStyles: {
+      0: { 
+        fontStyle: 'bold', 
+        cellWidth: 50, 
+        fillColor: colors.light,
+        valign: 'top'
       },
-      columnStyles: {
-        0: { 
-          fontStyle: 'bold', 
-          cellWidth: 50, 
-          fillColor: colors.light,
-          valign: 'top'
-        },
-        1: { 
-          cellWidth: 130,
-          valign: 'top'
-        },
+      1: { 
+        cellWidth: 130,
+        valign: 'top'
       },
-      margin: { left: 15, right: 15 },
-      didParseCell: function(data) {
-        // Color code kondisi and status
-        if (data.cell.text && data.cell.text.length > 0) {
-          const text = data.cell.text[0];
-          if (text.includes('normal') || text.includes('selesai')) {
-            data.cell.styles.textColor = colors.success;
-          } else if (text.includes('kotor') || text.includes('perlu')) {
-            data.cell.styles.textColor = colors.warning;
-          }
+    },
+    margin: { left: 15, right: 15 },
+    didParseCell: function(data) {
+      // Color code kondisi and status
+      if (data.cell.text && data.cell.text.length > 0) {
+        const text = data.cell.text[0];
+        if (text.includes('normal') || text.includes('selesai')) {
+          data.cell.styles.textColor = colors.success;
+        } else if (text.includes('kotor') || text.includes('perlu')) {
+          data.cell.styles.textColor = colors.warning;
         }
       }
-    });
-    
-    yPos = (doc as any).lastAutoTable.finalY + 10;
-  }
+    }
+  });
+  
+  yPos = (doc as any).lastAutoTable.finalY + 10;
   
 
   
