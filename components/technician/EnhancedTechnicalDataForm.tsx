@@ -1460,9 +1460,9 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
             const { generateTechnicalReportPDF } = await import("@/lib/pdf-generator");
             const blob = await generateTechnicalReportPDF({
               order_number: orderId,
-              service_title: formData.jenis_pekerjaan,
-              client_name: clientName,
-              location: formData.alamat_lokasi,
+              service_title: formData.jenis_pekerjaan || 'N/A',
+              client_name: clientName || formData.nama_personal || 'N/A',
+              location: formData.alamat_lokasi || 'N/A',
               scheduled_date: new Date().toISOString(),
               technician_name: technicianName,
               
