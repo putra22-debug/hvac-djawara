@@ -527,11 +527,12 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
       lineColor: colors.primary,
       lineWidth: 0.5,
       fontSize: 9,
+      cellPadding: 3,
     },
     styles: {
       fontSize: 9,
-      cellPadding: 5,
-      minCellHeight: 40,
+      cellPadding: 3,
+      minCellHeight: 30,
       lineColor: colors.primary,
       lineWidth: 0.5,
     },
@@ -547,25 +548,25 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
         if (data.column.index === 0 && signatureClient) {
           // Client signature (left)
           try {
-            doc.addImage(signatureClient, "PNG", data.cell.x + 15, data.cell.y + 5, 60, 20);
+            doc.addImage(signatureClient, "PNG", data.cell.x + 17, data.cell.y + 3, 60, 18);
           } catch (e) {
             console.error("Failed to add client signature:", e);
           }
           // Name below signature
           doc.setFontSize(8);
           doc.setFont("helvetica", "normal");
-          doc.text(signatureClientName || clientName || '', data.cell.x + data.cell.width / 2, data.cell.y + 32, { align: 'center' });
+          doc.text(signatureClientName || clientName || '', data.cell.x + data.cell.width / 2, data.cell.y + 25, { align: 'center' });
         } else if (data.column.index === 1 && signatureTechnician) {
           // Technician signature (right)
           try {
-            doc.addImage(signatureTechnician, "PNG", data.cell.x + 15, data.cell.y + 5, 60, 20);
+            doc.addImage(signatureTechnician, "PNG", data.cell.x + 12, data.cell.y + 3, 60, 18);
           } catch (e) {
             console.error("Failed to add technician signature:", e);
           }
           // Name below signature
           doc.setFontSize(8);
           doc.setFont("helvetica", "normal");
-          doc.text(signatureTechnicianName || technicianName || '', data.cell.x + data.cell.width / 2, data.cell.y + 32, { align: 'center' });
+          doc.text(signatureTechnicianName || technicianName || '', data.cell.x + data.cell.width / 2, data.cell.y + 25, { align: 'center' });
         }
       }
     }
