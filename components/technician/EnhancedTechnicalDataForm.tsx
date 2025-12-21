@@ -1452,65 +1452,6 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
             </>
           )}
         </Button>
-        
-        <Button
-          variant="outline"
-          size="lg"
-          onClick={async () => {
-            const { generateTechnicalReportPDF } = await import("@/lib/pdf-generator");
-            const blob = await generateTechnicalReportPDF({
-              order_number: orderId,
-              service_title: formData.jenis_pekerjaan,
-              client_name: clientName,
-              location: formData.alamat_lokasi,
-              scheduled_date: new Date().toISOString(),
-              technician_name: technicianName,
-              
-              // Conditional data based on work_type
-              work_type: workType,
-              check_type: checkType,
-              ac_units_data: workType === 'pengecekan' && checkType === 'performa' ? acUnits : undefined,
-              maintenance_units_data: workType === 'pemeliharaan' ? maintenanceUnits : undefined,
-              
-              // Traditional fields (for troubleshooting/instalasi/lain-lain)
-              problem: formData.problem,
-              tindakan: formData.tindakan,
-              rincian_pekerjaan: formData.rincian_pekerjaan,
-              rincian_kerusakan: formData.rincian_kerusakan,
-              catatan_rekomendasi: formData.catatan_rekomendasi,
-              lama_kerja: formData.lama_kerja ? parseFloat(formData.lama_kerja) : undefined,
-              jarak_tempuh: formData.jarak_tempuh ? parseFloat(formData.jarak_tempuh) : undefined,
-              
-              spareparts: spareparts.map(sp => ({
-                name: sp.name,
-                quantity: sp.quantity,
-                unit: sp.unit,
-                notes: sp.notes,
-              })),
-              photos: photos.map(p => p.preview), // Photo URLs or base64
-              photo_captions: photos.map(p => p.caption),
-              signature_technician: sigTechnicianRef.current?.toDataURL(),
-              signature_client: sigClientRef.current?.toDataURL(),
-              signature_technician_name: technicianName,
-              signature_client_name: clientName,
-              signature_date: signatureDate,
-            });
-            
-            // Download PDF
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `Laporan-${orderId}-${Date.now()}.pdf`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            toast.success("PDF berhasil diunduh!");
-          }}
-          disabled={!workType || !technicianName || !clientName}
-        >
-          <Upload className="mr-2 h-5 w-5" />
-          Export PDF
-        </Button>
       </div>
     </div>
   );
