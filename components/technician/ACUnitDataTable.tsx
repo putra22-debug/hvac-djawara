@@ -70,6 +70,7 @@ export async function saveUnitsToInventory(
       .select(`
         client_id,
         property_id,
+        tenant_id,
         properties (
           name,
           address
@@ -106,20 +107,24 @@ export async function saveUnitsToInventory(
         const locationDetail = roomParts[1] || unit.nama_ruang;
 
         const { error: insertError } = await supabase
-          .from('ac_inventory')
+          .from('ac_units')
           .insert({
             unit_code: unitCode,
             client_id: orderData.client_id,
             property_id: orderData.property_id,
-            property_name: propertyName,
+            tenant_id: orderData.tenant_id,
+            unit_name: locationDetail,
             location_detail: locationDetail,
             brand: unit.merk_ac,
-            capacity: unit.kapasitas_ac,
+            model: unit.merk_ac,
             ac_type: unit.jenis_unit,
-            installation_date: new Date().toISOString().split('T')[0],
-            status: 'active',
+            capacity_pk: parseFloat(unit.kapasitas_ac) || 1,
+            capacity_btu: Math.round((parseFloat(unit.kapasitas_ac) || 1) * 9000),
+            install_date: new Date().toISOString().split('T')[0],
+            last_service_date: new Date().toISOString().split('T')[0],
+            condition_status: 'good',
+            is_active: true,
             notes: unit.deskripsi_lain || `Unit ditambahkan oleh teknisi dari order ${orderId}`,
-            last_maintenance_date: new Date().toISOString().split('T')[0],
           });
 
         if (insertError) {
@@ -196,10 +201,10 @@ export function ACUnitDataTable({ data, onChange, orderId }: ACUnitDataTableProp
       
       // Fetch inventory for this client
       const { data: inventoryData, error } = await supabase
-        .from('ac_inventory')
+        .from('ac_units')
         .select('*')
         .eq('client_id', orderData.client_id)
-        .order('property_name', { ascending: true });
+        .order('unit_code', { ascending: true });
       
       if (error) throw error;
       
@@ -215,11 +220,11 @@ export function ACUnitDataTable({ data, onChange, orderId }: ACUnitDataTableProp
   const selectFromInventory = (unit: any) => {
     const newUnit: ACUnitData = {
       id: `unit-${Date.now()}`,
-      nama_ruang: `${unit.property_name} - ${unit.location_detail}`,
+      nama_ruang: unit.location_detail || unit.unit_name || "",
       merk_ac: unit.brand || "",
-      kapasitas_ac: unit.capacity || "",
+      kapasitas_ac: unit.capacity_pk ? `${unit.capacity_pk} PK` : "",
       jenis_unit: unit.ac_type || "",
-      voltage_supply: "",
+      voltage_supply: unit.voltage || "",
       arus_supply: "",
       tekanan_refrigerant: "",
       temperatur_supply: "",
@@ -229,7 +234,7 @@ export function ACUnitDataTable({ data, onChange, orderId }: ACUnitDataTableProp
     onChange([...data, newUnit]);
     setSearchOpen(false);
     setSearchQuery("");
-    toast.success(`Unit ${unit.property_name} ditambahkan`);
+    toast.success(`Unit ${unit.unit_code} ditambahkan`);
   };
 
   const addUnit = () => {
@@ -265,9 +270,10 @@ export function ACUnitDataTable({ data, onChange, orderId }: ACUnitDataTableProp
   };
 
   const filteredInventory = inventory.filter(unit =>
-    unit.unit_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    unit.property_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    unit.location_detail.toLowerCase().includes(searchQuery.toLowerCase())
+    unit.unit_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    unit.unit_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    unit.location_detail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    unit.brand?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -314,14 +320,14 @@ export function ACUnitDataTable({ data, onChange, orderId }: ACUnitDataTableProp
                           >
                             <div className="flex justify-between items-start">
                               <div>
-                                <h4 className="font-medium">{unit.property_name}</h4>
+                                <h4 className="font-medium">{unit.unit_name || unit.location_detail}</h4>
                                 <p className="text-sm text-gray-600">{unit.location_detail}</p>
                                 <div className="flex gap-4 mt-2 text-sm">
                                   <span className="text-gray-500">
                                     <strong>Merk:</strong> {unit.brand || '-'}
                                   </span>
                                   <span className="text-gray-500">
-                                    <strong>Kapasitas:</strong> {unit.capacity || '-'}
+                                    <strong>Kapasitas:</strong> {unit.capacity_pk ? `${unit.capacity_pk} PK` : '-'}
                                   </span>
                                   <span className="text-gray-500">
                                     <strong>Tipe:</strong> {unit.ac_type || '-'}
