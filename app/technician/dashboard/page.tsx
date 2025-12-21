@@ -14,6 +14,8 @@ import {
   LogOut,
   User,
   Briefcase,
+  Eye,
+  Edit3,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -179,6 +181,38 @@ export default function TechnicianDashboard() {
     router.push("/technician/login");
   };
 
+  const handlePreviewPDF = async (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation(); // Prevent card click
+    
+    try {
+      const supabase = createClient();
+      
+      // Check if work log exists
+      const { data: workLog, error } = await supabase
+        .from('technician_work_logs')
+        .select('*')
+        .eq('service_order_id', orderId)
+        .eq('technician_id', technician?.id)
+        .maybeSingle();
+      
+      if (error || !workLog) {
+        toast.error("Belum ada data teknis untuk order ini");
+        return;
+      }
+      
+      // Navigate to preview
+      router.push(`/technician/orders/${orderId}/preview`);
+    } catch (error) {
+      console.error('Error checking work log:', error);
+      toast.error("Gagal membuka preview");
+    }
+  };
+
+  const handleEditOrder = (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation(); // Prevent card click
+    router.push(`/technician/orders/${orderId}`);
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
       scheduled: "bg-blue-500",
@@ -339,7 +373,7 @@ export default function TechnicianDashboard() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                      <div className="flex flex-col gap-1 text-sm text-muted-foreground mb-3">
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4" />
                           <span className="line-clamp-1">{order.location_address}</span>
@@ -360,6 +394,30 @@ export default function TechnicianDashboard() {
                           <span>Estimasi: {order.estimated_duration} jam</span>
                         </div>
                       </div>
+
+                      {/* Action Buttons - Only show for completed orders */}
+                      {order.status === "completed" && (
+                        <div className="flex gap-2 mb-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={(e) => handlePreviewPDF(e, order.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Preview PDF
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={(e) => handleEditOrder(e, order.id)}
+                          >
+                            <Edit3 className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                        </div>
+                      )}
 
                       <div className="mt-3">
                         <OrderTimeline
