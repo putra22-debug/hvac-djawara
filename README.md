@@ -1,30 +1,93 @@
 # Djawara HVAC Platform
 
-> **Last Updated:** December 20, 2025  
-> **Status:** ✅ Production Ready - All Core Features Working  
-> **Latest Fix:** PDF Generation (Client-Side Architecture)
+> **Last Updated:** December 21, 2025  
+> **Status:** ✅ Production Ready - Technical Data Entry Enhanced  
+> **Latest Updates:** Inventory Integration, Quick Actions, Debug Logging
 
 ---
 
 ## 🤖 FOR AI AGENTS - START HERE
 
-**📖 Read These Documents First:**
-1. **[docs/ai-handoff/2025-12-20-PDF-GENERATION-FIX.md](docs/ai-handoff/2025-12-20-PDF-GENERATION-FIX.md)** ← Latest session (PDF system complete)
-2. **[PROJECT-SUMMARY.md](PROJECT-SUMMARY.md)** ← System architecture overview
-3. **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** ← Database structure reference
+### 📖 **CRITICAL: Read These Documents in Order**
 
-**✅ Current System Status:**
-- PDF Generation: ✅ Working (client-side jsPDF)
-- Technical Reports: ✅ Complete workflow
+1. **[docs/ai-handoff/2025-12-21-TECHNICAL-DATA-ENHANCEMENTS.md](docs/ai-handoff/2025-12-21-TECHNICAL-DATA-ENHANCEMENTS.md)** ← **START HERE** - Latest session (Dec 21)
+2. **[docs/ai-handoff/2025-12-20-PDF-GENERATION-FIX.md](docs/ai-handoff/2025-12-20-PDF-GENERATION-FIX.md)** - PDF system details
+3. **[PROJECT-SUMMARY.md](PROJECT-SUMMARY.md)** - System architecture overview
+4. **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Database structure reference
+
+### ✅ **Current System Status (December 21, 2025)**
+
+**Core Features:**
+- PDF Generation: ✅ Working (optimized, no emojis, single signature)
+- Preview PDF: ✅ Opens in new tab (no auto-download)
+- Technical Reports: ✅ Complete workflow with conditional forms
+- Inventory Integration: ✅ Search and select existing AC units
+- Save to Inventory: ✅ Technicians can add new units from field
+- Quick Actions: ✅ Preview/Edit buttons in dashboard cards
 - Photo Upload: ✅ Real-time with progress
 - Timeline Updates: ✅ Badge detection working
 - All Portals: ✅ Admin, technician, client, public
 
-**🔧 Key Files:**
-- `components/technician/EnhancedTechnicalDataForm.tsx` - Report form (1215 lines)
-- `components/client-portal/DownloadPDFButton.tsx` - PDF download (65 lines)
-- `lib/pdf-generator.ts` - Client-side PDF gen (273 lines)
+**Recent Enhancements (Dec 21):**
+- ✅ Inventory search in AC unit data entry (3 work types)
+- ✅ Save new units to client inventory feature
+- ✅ Quick preview/edit buttons in order cards
+- ✅ PDF preview page (`/technician/orders/[id]/preview`)
+- ✅ AC units data now saves for troubleshooting & instalasi
+- ✅ Comprehensive debug logging for data persistence
+
+**Known Issues:**
+- 🔍 Data persistence investigation ongoing (debug logs added)
+- 🔍 Some auth redirects (improved error handling)
+
+### 🔧 **Key Files (Updated Dec 21)**
+
+**Technical Data Entry:**
+- `components/technician/EnhancedTechnicalDataForm.tsx` - Main report form with conditional sections (1582 lines)
+- `components/technician/ACUnitDataTable.tsx` - AC unit data with inventory search (550 lines)
+- `components/technician/MaintenanceUnitTable.tsx` - Maintenance unit data entry
+
+**PDF System:**
+- `lib/pdf-generator.ts` - Client-side PDF generation (606 lines)
 - `app/api/reports/[orderId]/pdf/route.ts` - API endpoint (107 lines)
+- `components/client-portal/DownloadPDFButton.tsx` - PDF download (65 lines)
+
+**Dashboard & Navigation:**
+- `app/technician/dashboard/page.tsx` - Dashboard with quick actions (399 lines)
+- `app/technician/orders/[id]/page.tsx` - Order detail page (499 lines)
+- `app/technician/orders/[id]/preview/page.tsx` - PDF preview page (NEW - 197 lines)
+
+**Database:**
+- `ac_units` table - Client AC inventory (read/write for save feature)
+- `technician_work_logs` table - Technical reports storage
+- `service_orders` table - Order management
+
+### 🎯 **Quick Context for New Session**
+
+**What Was Just Implemented:**
+1. Inventory search - Technicians can pick existing AC units instead of re-typing
+2. Save to inventory - New AC units found in field can be added to client inventory
+3. Quick actions - Preview PDF and Edit buttons directly in dashboard cards
+4. Data persistence fix - AC units now save for all work types (not just pengecekan)
+5. Debug logging - Comprehensive console logs to track data flow
+
+**Current Focus Area:**
+- Investigating data persistence issue (user reports data not saving)
+- Debug logs active in console for tracking
+- Waiting for user testing with console logs
+
+**Testing Needed:**
+- [ ] Verify AC units data persists after save
+- [ ] Check inventory save creates records in ac_units table
+- [ ] Confirm preview PDF shows saved data
+- [ ] Test quick actions in dashboard
+- [ ] Performance test with large inventory (>50 units)
+
+**Important Notes:**
+- Table name is `ac_units` (NOT `ac_inventory`)
+- Work types using ACUnitDataTable: pengecekan (performa), troubleshooting, instalasi
+- Preview uses same PDF generator as download (data consistency ensured)
+- Inventory filtered by client_id (multi-tenant safe)
 
 ---
 
