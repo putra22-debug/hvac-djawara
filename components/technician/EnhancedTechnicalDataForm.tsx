@@ -1043,6 +1043,12 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
                   rows={3}
                 />
               </div>
+              
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-semibold mb-3">Data Kinerja Unit AC</h3>
+                <p className="text-xs text-muted-foreground mb-3">Opsional: Isi data kinerja unit untuk dokumentasi lebih lengkap</p>
+                <ACUnitDataTable data={acUnits} onChange={setAcUnits} />
+              </div>
             </div>
           )}
 
@@ -1056,6 +1062,12 @@ export default function EnhancedTechnicalDataForm({ orderId, technicianId, onSuc
                   placeholder="1. Pemasangan unit indoor&#10;2. Pemasangan unit outdoor&#10;3. Penarikan kabel&#10;4. ..."
                   rows={4}
                 />
+              </div>
+              
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-semibold mb-3">Data Kinerja Unit AC</h3>
+                <p className="text-xs text-muted-foreground mb-3">Opsional: Isi data kinerja unit setelah instalasi untuk dokumentasi commissioning</p>
+                <ACUnitDataTable data={acUnits} onChange={setAcUnits} />
               </div>
             </div>
           )}
