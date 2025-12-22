@@ -557,6 +557,29 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   // Signature section title
   drawSectionTitle("TANDA TANGAN", yPos);
   yPos += 6;
+
+  // Introductory statement (as requested)
+  const signatureIntroText =
+    "Dengan ini teknisi kami telah mengerjakan dan menyelesaikan pekerjaan dengan baik tanpa ada kendala dan kerusakan unit yang disebabkan oleh teknisi kami";
+  const introLines = doc.splitTextToSize(signatureIntroText, contentWidth - 10);
+  const introLineHeight = 4;
+  const introBoxHeight = 6 + introLines.length * introLineHeight;
+
+  // Add new page if intro + panels won't fit
+  const requiredHeightForSign = introBoxHeight + 6 + 38 + 6 + 8 + 18;
+  if (yPos + requiredHeightForSign > 270) {
+    doc.addPage();
+    yPos = 20;
+    drawSectionTitle("TANDA TANGAN", yPos);
+    yPos += 6;
+  }
+
+  drawBox(contentLeft, yPos, contentWidth, introBoxHeight, colors.white, colors.border);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(0, 0, 0);
+  doc.text(introLines, contentLeft + 5, yPos + 4);
+  yPos += introBoxHeight + 6;
   
   // Two-column signature panels (manual layout for reliable spacing)
   const panelGap = 8;
