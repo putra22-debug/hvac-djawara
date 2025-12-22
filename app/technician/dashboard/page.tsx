@@ -108,8 +108,10 @@ export default function TechnicianDashboard() {
       const p = profileData as ProfileRow | null;
       setTechnician({
         ...techData,
-        full_name: p?.full_name || techData.full_name,
-        phone: p?.phone ?? (techData.phone ?? null),
+        // Prefer admin-managed technicians table (People Management) for identity fields.
+        // Use profiles only as fallback (or for avatar), because profiles can be stale.
+        full_name: techData.full_name || p?.full_name || user.email || "Technician",
+        phone: (techData.phone ?? null) ?? (p?.phone ?? null),
         avatar_url: p?.avatar_url ?? null,
       });
 
