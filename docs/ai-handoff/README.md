@@ -1,8 +1,10 @@
 # 🤖 AI Agent Handoff Documentation
 
 **Purpose:** Central repository untuk semua dokumentasi handoff AI agent  
-**Last Updated:** December 18, 2025  
+**Last Updated:** December 22, 2025  
 **Status:** Active Development
+
+> **New entrypoint:** Start from **[../ai-agent/README.md](../ai-agent/README.md)** for the latest handoff.
 
 ---
 

@@ -1,8 +1,8 @@
 # Djawara HVAC Platform
 
-> **Last Updated:** December 21, 2025  
-> **Status:** ✅ Production Ready - Technical Data Entry Enhanced  
-> **Latest Updates:** Inventory Integration, Quick Actions, Debug Logging
+> **Last Updated:** December 22, 2025  
+> **Status:** ✅ Production Ready - People Management + Reimburse Live  
+> **Latest Updates:** Technician profile sync, Reimburse (Finance + Technician), Avatar crop & persistence
 
 ---
 
@@ -10,12 +10,12 @@
 
 ### 📖 **CRITICAL: Read These Documents in Order**
 
-1. **[docs/ai-handoff/2025-12-21-TECHNICAL-DATA-ENHANCEMENTS.md](docs/ai-handoff/2025-12-21-TECHNICAL-DATA-ENHANCEMENTS.md)** ← **START HERE** - Latest session (Dec 21)
-2. **[docs/ai-handoff/2025-12-20-PDF-GENERATION-FIX.md](docs/ai-handoff/2025-12-20-PDF-GENERATION-FIX.md)** - PDF system details
+1. **[docs/ai-agent/2025-12-22-REIMBURSE-PEOPLE-TECHNICIAN-HANDOFF.md](docs/ai-agent/2025-12-22-REIMBURSE-PEOPLE-TECHNICIAN-HANDOFF.md)** ← **START HERE** - Latest session (Dec 22)
+2. **[docs/ai-handoff/2025-12-21-TECHNICAL-DATA-ENHANCEMENTS.md](docs/ai-handoff/2025-12-21-TECHNICAL-DATA-ENHANCEMENTS.md)** - Technical data + PDF/inventory context
 3. **[PROJECT-SUMMARY.md](PROJECT-SUMMARY.md)** - System architecture overview
 4. **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Database structure reference
 
-### ✅ **Current System Status (December 21, 2025)**
+### ✅ **Current System Status (December 22, 2025)**
 
 **Core Features:**
 - PDF Generation: ✅ Working (optimized, no emojis, single signature)
@@ -28,6 +28,13 @@
 - Timeline Updates: ✅ Badge detection working
 - All Portals: ✅ Admin, technician, client, public
 
+**Newly Live (Dec 22):**
+- ✅ People Management technician sync (verified technicians appear in team cardbox)
+- ✅ Technician avatar crop + persistence (server-side profile update)
+- ✅ Resend activation link for technicians
+- ✅ Reimburse module (Finance): categories + inbox + status actions
+- ✅ Reimburse module (Technician): submit + history + dashboard indicator
+
 **Recent Enhancements (Dec 21):**
 - ✅ Inventory search in AC unit data entry (3 work types)
 - ✅ Save new units to client inventory feature
@@ -39,6 +46,9 @@
 **Known Issues:**
 - 🔍 Data persistence investigation ongoing (debug logs added)
 - 🔍 Some auth redirects (improved error handling)
+
+**Common Setup Issue:**
+- If browser console shows CORS blocked calls to `supabase.co/rest/v1/...`, add your app origin in Supabase → Project Settings → API → CORS Allowed Origins.
 
 ### 🔧 **Key Files (Updated Dec 21)**
 
