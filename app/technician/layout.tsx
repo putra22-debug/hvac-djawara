@@ -6,7 +6,12 @@ import { useRouter, usePathname } from "next/navigation";
 import { Loader2, Menu } from "lucide-react";
 import { TechnicianSidebar } from "@/components/layout/technician-sidebar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function TechnicianLayout({
   children,
@@ -102,6 +107,10 @@ export default function TechnicianLayout({
 
         <Dialog open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <DialogContent className="p-0 w-[92vw] max-w-sm">
+            <DialogTitle className="sr-only">Navigasi Teknisi</DialogTitle>
+            <DialogDescription className="sr-only">
+              Pilih menu untuk membuka halaman.
+            </DialogDescription>
             <TechnicianSidebar
               variant="mobile"
               onNavigate={() => setMobileNavOpen(false)}
