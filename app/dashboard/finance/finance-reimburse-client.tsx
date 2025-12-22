@@ -51,6 +51,7 @@ export function FinanceReimburseClient({ tenantId }: { tenantId: string }) {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [creatingCategory, setCreatingCategory] = useState(false)
   const [togglingCategoryId, setTogglingCategoryId] = useState<string | null>(null)
+  const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null)
 
   const fetchCategories = async () => {
     setLoadingCategories(true)
@@ -171,15 +172,53 @@ export function FinanceReimburseClient({ tenantId }: { tenantId: string }) {
   const statusBadge = (status: ReimburseRequest['status']) => {
     switch (status) {
       case 'submitted':
-        return <Badge variant="secondary">SUBMITTED</Badge>
+        return <Badge variant="secondary">DIPROSES</Badge>
       case 'approved':
-        return <Badge className="bg-green-600">APPROVED</Badge>
+        return <Badge className="bg-green-600">DISETUJUI</Badge>
       case 'rejected':
-        return <Badge className="bg-red-600">REJECTED</Badge>
+        return <Badge className="bg-red-600">DITOLAK</Badge>
       case 'paid':
-        return <Badge className="bg-blue-600">PAID</Badge>
+        return <Badge className="bg-blue-600">DIBAYARKAN</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  const updateRequestStatus = async (request: ReimburseRequest, nextStatus: ReimburseRequest['status']) => {
+    setUpdatingRequestId(request.id)
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError || !user) throw new Error('Session tidak valid. Silakan login ulang.')
+
+      const payload: Partial<ReimburseRequest> & Record<string, any> = {
+        status: nextStatus,
+      }
+
+      // Track decision maker only for approve/reject.
+      if (nextStatus === 'approved' || nextStatus === 'rejected') {
+        payload.decided_by = user.id
+        payload.decided_at = new Date().toISOString()
+      }
+
+      const { error } = await supabase
+        .from('reimburse_requests')
+        .update(payload)
+        .eq('id', request.id)
+        .eq('tenant_id', tenantId)
+
+      if (error) throw error
+
+      toast.success('Status pengajuan diperbarui')
+      await fetchRequests()
+    } catch (error: any) {
+      console.error('updateRequestStatus error:', error)
+      toast.error(error?.message || 'Gagal update status')
+    } finally {
+      setUpdatingRequestId(null)
     }
   }
 
@@ -287,6 +326,7 @@ export function FinanceReimburseClient({ tenantId }: { tenantId: string }) {
                           <TableHead>Jumlah</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Struk</TableHead>
+                          <TableHead>Aksi</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -313,6 +353,42 @@ export function FinanceReimburseClient({ tenantId }: { tenantId: string }) {
                                 <ExternalLink className="w-4 h-4 mr-2" />
                                 Lihat
                               </Button>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {r.status === 'submitted' ? (
+                                  <>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      disabled={updatingRequestId === r.id}
+                                      onClick={() => updateRequestStatus(r, 'approved')}
+                                    >
+                                      Setujui
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={updatingRequestId === r.id}
+                                      onClick={() => updateRequestStatus(r, 'rejected')}
+                                    >
+                                      Tolak
+                                    </Button>
+                                  </>
+                                ) : r.status === 'approved' ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={updatingRequestId === r.id}
+                                    onClick={() => updateRequestStatus(r, 'paid')}
+                                  >
+                                    Tandai Dibayar
+                                  </Button>
+                                ) : (
+                                  <span className="text-sm text-gray-500">-</span>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
