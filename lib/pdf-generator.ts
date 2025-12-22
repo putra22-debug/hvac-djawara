@@ -78,6 +78,59 @@ interface WorkLogData {
     unit: string;
     notes?: string;
   }>;
+
+  // Installation / measurement fields (stored directly on work log)
+  mcb_1?: number;
+  mcb_2?: number;
+  mcb_3?: number;
+  mcb_4?: number;
+  mcb_5?: number;
+  volt_1?: number;
+  volt_2?: number;
+  volt_3?: number;
+  volt_4?: number;
+  volt_5?: number;
+  ampere_total_1?: number;
+  ampere_total_2?: number;
+  ampere_total_3?: number;
+  ampere_total_4?: number;
+  ampere_total_5?: number;
+  ampere_kompressor_1?: number;
+  ampere_kompressor_2?: number;
+  ampere_kompressor_3?: number;
+  ampere_kompressor_4?: number;
+  ampere_kompressor_5?: number;
+  ampere_kipas_1?: number;
+  ampere_kipas_2?: number;
+  ampere_kipas_3?: number;
+  ampere_kipas_4?: number;
+  ampere_kipas_5?: number;
+  tekanan_tinggi_1?: number;
+  tekanan_tinggi_2?: number;
+  tekanan_tinggi_3?: number;
+  tekanan_tinggi_4?: number;
+  tekanan_tinggi_5?: number;
+  tekanan_rendah_1?: number;
+  tekanan_rendah_2?: number;
+  tekanan_rendah_3?: number;
+  tekanan_rendah_4?: number;
+  tekanan_rendah_5?: number;
+  kondensor_in_out_1?: number;
+  kondensor_in_out_2?: number;
+  kondensor_in_out_3?: number;
+  kondensor_in_out_4?: number;
+  kondensor_in_out_5?: number;
+  evaporator_in_out_1?: number;
+  evaporator_in_out_2?: number;
+  evaporator_in_out_3?: number;
+  evaporator_in_out_4?: number;
+  evaporator_in_out_5?: number;
+  temp_ruang_1?: number;
+  temp_ruang_2?: number;
+  temp_ruang_3?: number;
+  temp_ruang_4?: number;
+  temp_ruang_5?: number;
+  lain_lain?: string;
   photos?: string[];
   photo_captions?: string[];
   photoCaptions?: string[];
@@ -347,6 +400,106 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   });
   
   yPos = (doc as any).lastAutoTable.finalY + 10;
+
+  // Measurement table (instalasi / pengukuran teknis)
+  const hasAnyMeasurement = [
+    data.mcb_1, data.mcb_2, data.mcb_3, data.mcb_4, data.mcb_5,
+    data.volt_1, data.volt_2, data.volt_3, data.volt_4, data.volt_5,
+    data.ampere_total_1, data.ampere_total_2, data.ampere_total_3, data.ampere_total_4, data.ampere_total_5,
+    data.ampere_kompressor_1, data.ampere_kompressor_2, data.ampere_kompressor_3, data.ampere_kompressor_4, data.ampere_kompressor_5,
+    data.ampere_kipas_1, data.ampere_kipas_2, data.ampere_kipas_3, data.ampere_kipas_4, data.ampere_kipas_5,
+    data.tekanan_tinggi_1, data.tekanan_tinggi_2, data.tekanan_tinggi_3, data.tekanan_tinggi_4, data.tekanan_tinggi_5,
+    data.tekanan_rendah_1, data.tekanan_rendah_2, data.tekanan_rendah_3, data.tekanan_rendah_4, data.tekanan_rendah_5,
+    data.kondensor_in_out_1, data.kondensor_in_out_2, data.kondensor_in_out_3, data.kondensor_in_out_4, data.kondensor_in_out_5,
+    data.evaporator_in_out_1, data.evaporator_in_out_2, data.evaporator_in_out_3, data.evaporator_in_out_4, data.evaporator_in_out_5,
+    data.temp_ruang_1, data.temp_ruang_2, data.temp_ruang_3, data.temp_ruang_4, data.temp_ruang_5,
+  ].some((v) => v !== undefined && v !== null && v !== ("" as any));
+
+  if (hasAnyMeasurement || (data.lain_lain && String(data.lain_lain).trim())) {
+    if (yPos > 235) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    drawSectionTitle("DATA PENGUKURAN TEKNIS", yPos);
+    yPos += 4;
+
+    const rows: Array<{ label: string; unit: string; values: Array<number | undefined> }> = [
+      { label: "MCB", unit: "A", values: [data.mcb_1, data.mcb_2, data.mcb_3, data.mcb_4, data.mcb_5] },
+      { label: "Volt", unit: "V", values: [data.volt_1, data.volt_2, data.volt_3, data.volt_4, data.volt_5] },
+      { label: "Ampere Total", unit: "A", values: [data.ampere_total_1, data.ampere_total_2, data.ampere_total_3, data.ampere_total_4, data.ampere_total_5] },
+      { label: "Ampere Kompressor", unit: "A", values: [data.ampere_kompressor_1, data.ampere_kompressor_2, data.ampere_kompressor_3, data.ampere_kompressor_4, data.ampere_kompressor_5] },
+      { label: "Ampere Kipas", unit: "A", values: [data.ampere_kipas_1, data.ampere_kipas_2, data.ampere_kipas_3, data.ampere_kipas_4, data.ampere_kipas_5] },
+      { label: "Tekanan Tinggi", unit: "psi", values: [data.tekanan_tinggi_1, data.tekanan_tinggi_2, data.tekanan_tinggi_3, data.tekanan_tinggi_4, data.tekanan_tinggi_5] },
+      { label: "Tekanan Rendah", unit: "psi", values: [data.tekanan_rendah_1, data.tekanan_rendah_2, data.tekanan_rendah_3, data.tekanan_rendah_4, data.tekanan_rendah_5] },
+      { label: "Kondensor In/Out", unit: "°C", values: [data.kondensor_in_out_1, data.kondensor_in_out_2, data.kondensor_in_out_3, data.kondensor_in_out_4, data.kondensor_in_out_5] },
+      { label: "Evaporator In/Out", unit: "°C", values: [data.evaporator_in_out_1, data.evaporator_in_out_2, data.evaporator_in_out_3, data.evaporator_in_out_4, data.evaporator_in_out_5] },
+      { label: "Temp Ruang", unit: "°C", values: [data.temp_ruang_1, data.temp_ruang_2, data.temp_ruang_3, data.temp_ruang_4, data.temp_ruang_5] },
+    ];
+
+    const body = rows
+      .filter((r) => r.values.some((v) => v !== undefined && v !== null && v !== ("" as any)))
+      .map((r) => [
+        r.label,
+        r.values[0] ?? "-",
+        r.values[1] ?? "-",
+        r.values[2] ?? "-",
+        r.values[3] ?? "-",
+        r.values[4] ?? "-",
+        r.unit,
+      ]);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Parameter", "1", "2", "3", "4", "5", "Satuan"]],
+      body: body.length > 0 ? body : [["-", "-", "-", "-", "-", "-", "-"]],
+      theme: "grid",
+      headStyles: {
+        fillColor: colors.light,
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+        halign: "center",
+        lineColor: colors.border,
+        lineWidth: 0.3,
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        lineColor: colors.border,
+        lineWidth: 0.3,
+      },
+      columnStyles: {
+        0: { cellWidth: 50, fontStyle: "bold" },
+        1: { cellWidth: 18, halign: "center" },
+        2: { cellWidth: 18, halign: "center" },
+        3: { cellWidth: 18, halign: "center" },
+        4: { cellWidth: 18, halign: "center" },
+        5: { cellWidth: 18, halign: "center" },
+        6: { cellWidth: 20, halign: "center" },
+      },
+      margin: { left: 15, right: 15 },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 6;
+
+    if (data.lain_lain && String(data.lain_lain).trim()) {
+      const extraLines = doc.splitTextToSize(String(data.lain_lain), contentWidth - 10);
+      const lineH = 4;
+      const boxH = 6 + extraLines.length * lineH;
+      if (yPos + boxH > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      drawBox(contentLeft, yPos, contentWidth, boxH, colors.white, colors.border);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text(extraLines, contentLeft + 5, yPos + 4);
+      yPos += boxH + 6;
+    }
+  }
   
 
   
