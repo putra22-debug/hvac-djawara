@@ -104,6 +104,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     danger: [231, 76, 60] as [number, number, number],         // Red
     dark: [44, 62, 80] as [number, number, number],            // Dark blue-gray
     light: [236, 240, 241] as [number, number, number],        // Light gray
+    border: [200, 200, 200] as [number, number, number],
     white: [255, 255, 255] as [number, number, number],
   };
   
@@ -130,34 +131,44 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     }
     doc.rect(x, y, width, height, borderColor ? 'FD' : 'F');
   };
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const contentLeft = 15;
+  const contentRight = 15;
+  const contentWidth = pageWidth - contentLeft - contentRight;
+
+  const drawSectionTitle = (title: string, y: number) => {
+    // subtle accent line + title (no big color blocks)
+    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.setLineWidth(1);
+    doc.line(contentLeft, y - 2, contentLeft + 18, y - 2);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
+    doc.text(title, contentLeft, y);
+    doc.setTextColor(0, 0, 0);
+  };
   
-  // Header with colored background
-  drawBox(0, 0, 210, 40, colors.primary);
-  
+  // Header (more compact & professional)
+  drawBox(0, 0, pageWidth, 22, colors.dark);
+  drawBox(0, 22, pageWidth, 2, colors.primary);
+
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
-  doc.text("BERITA ACARA SERAH TERIMA", 105, 18, { align: "center" });
-  
   doc.setFontSize(14);
+  doc.text("BERITA ACARA SERAH TERIMA", pageWidth / 2, 10, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.text("Laporan Pekerjaan Teknis", 105, 26, { align: "center" });
-  
   doc.setFontSize(10);
-  doc.text("HVAC Djawara Service", 105, 33, { align: "center" });
-  
-  // Reset text color
+  doc.text("Laporan Pekerjaan Teknis", pageWidth / 2, 16, { align: "center" });
+
   doc.setTextColor(0, 0, 0);
-  
-  let yPos = 50;
+
+  let yPos = 34;
   
   // Order Info Table
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-  doc.text("INFORMASI PEKERJAAN", 20, yPos);
-  doc.setTextColor(0, 0, 0);
-  yPos += 5;
+  drawSectionTitle("INFORMASI PEKERJAAN", yPos);
+  yPos += 4;
   
   autoTable(doc, {
     startY: yPos,
@@ -170,6 +181,8 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     styles: {
       fontSize: 9,
       cellPadding: 3,
+      lineColor: colors.border,
+      lineWidth: 0.3,
     },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 28, fillColor: colors.light },
@@ -183,12 +196,8 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   yPos = (doc as any).lastAutoTable.finalY + 10;
   
   // Laporan Pekerjaan Section
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-  doc.text("LAPORAN PEKERJAAN", 20, yPos);
-  doc.setTextColor(0, 0, 0);
-  yPos += 5;
+  drawSectionTitle("LAPORAN PEKERJAAN", yPos);
+  yPos += 4;
   
   // Prepare table data based on work type
   let tableData: any[][] = [];
@@ -264,8 +273,8 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     styles: {
       fontSize: 9,
       cellPadding: 4,
-      lineColor: colors.primary,
-      lineWidth: 0.5,
+      lineColor: colors.border,
+      lineWidth: 0.3,
     },
     columnStyles: {
       0: { 
@@ -280,17 +289,9 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
       },
     },
     margin: { left: 15, right: 15 },
-    didParseCell: function(data) {
-      // Color code kondisi and status
-      if (data.cell.text && data.cell.text.length > 0) {
-        const text = data.cell.text[0];
-        if (text.includes('normal') || text.includes('selesai')) {
-          data.cell.styles.textColor = colors.success;
-        } else if (text.includes('kotor') || text.includes('perlu')) {
-          data.cell.styles.textColor = colors.warning;
-        }
-      }
-    }
+    alternateRowStyles: {
+      fillColor: [245, 245, 245]
+    },
   });
   
   yPos = (doc as any).lastAutoTable.finalY + 10;
@@ -304,12 +305,8 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
       yPos = 20;
     }
     
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.text("SPAREPART YANG DIGUNAKAN", 20, yPos);
-    doc.setTextColor(0, 0, 0);
-    yPos += 5;
+    drawSectionTitle("SPAREPART YANG DIGUNAKAN", yPos);
+    yPos += 4;
     
     autoTable(doc, {
       startY: yPos,
@@ -323,7 +320,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
       ]),
       theme: "grid",
       headStyles: { 
-        fillColor: colors.primary,
+        fillColor: colors.dark,
         textColor: [255, 255, 255],
         fontStyle: 'bold',
         halign: 'center'
@@ -331,6 +328,8 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
       styles: {
         fontSize: 9,
         cellPadding: 3,
+        lineColor: colors.border,
+        lineWidth: 0.3,
       },
       columnStyles: {
         0: { halign: 'center', cellWidth: 15 },
@@ -353,15 +352,16 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     doc.addPage();
     yPos = 20;
     
-    // Section header
-    drawBox(0, 0, 210, 15, colors.primary);
+    // Section header (compact)
+    drawBox(0, 0, pageWidth, 16, colors.dark);
+    drawBox(0, 16, pageWidth, 2, colors.primary);
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("DOKUMENTASI FOTO PEKERJAAN", 105, 10, { align: "center" });
+    doc.setFontSize(11);
+    doc.text("DOKUMENTASI FOTO PEKERJAAN", pageWidth / 2, 11, { align: "center" });
     doc.setTextColor(0, 0, 0);
     
-    yPos = 25;
+    yPos = 24;
     
     // Display photos in grid (2 columns) with border
     let col = 0;
@@ -372,7 +372,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
       const xPos = col === 0 ? 15 : 108;
       
       // Photo frame
-      drawBox(xPos, yPos, 87, 70, [255, 255, 255], [200, 200, 200]);
+      drawBox(xPos, yPos, 87, 70, colors.white, colors.border);
       
       try {
         // Try to add image (may fail for some formats)
@@ -390,7 +390,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
       }
       
       // Caption with background
-      drawBox(xPos + 2, yPos + 58, 83, 10, [245, 245, 245]);
+      drawBox(xPos + 2, yPos + 58, 83, 10, colors.light);
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
       const captionLines = doc.splitTextToSize(caption, 80);
@@ -425,23 +425,24 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
           yPos = 20;
           
           // Section header
-          drawBox(0, 0, 210, 15, colors.success);
+          drawBox(0, 0, pageWidth, 16, colors.dark);
+          drawBox(0, 16, pageWidth, 2, colors.success);
           doc.setTextColor(255, 255, 255);
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(12);
-          doc.text("DOKUMENTASI FOTO PER UNIT", 105, 10, { align: "center" });
+          doc.setFontSize(11);
+          doc.text("DOKUMENTASI FOTO PER UNIT", pageWidth / 2, 11, { align: "center" });
           doc.setTextColor(0, 0, 0);
           
-          yPos = 25;
+          yPos = 24;
           hasUnitPhotos = true;
         }
         
         // Unit header with colored badge
-        drawBox(15, yPos - 2, 180, 10, colors.light, colors.success);
+        drawBox(contentLeft, yPos - 2, contentWidth, 10, colors.light, colors.success);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(10);
         doc.setTextColor(colors.success[0], colors.success[1], colors.success[2]);
-        doc.text(`Unit ${unitIdx + 1}: ${unit.nama_ruang || 'N/A'}`, 20, yPos + 4);
+        doc.text(`Unit ${unitIdx + 1}: ${unit.nama_ruang || 'N/A'}`, contentLeft + 5, yPos + 4);
         doc.setTextColor(0, 0, 0);
         yPos += 15;
         
@@ -452,7 +453,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
           const xPos = col === 0 ? 15 : 108;
           
           // Photo frame
-          drawBox(xPos, yPos, 87, 70, [255, 255, 255], [180, 180, 180]);
+          drawBox(xPos, yPos, 87, 70, colors.white, colors.border);
           
           try {
             await loadImage(photo.preview).then((img) => {
@@ -469,7 +470,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
           
           // Caption with background
           if (photo.caption) {
-            drawBox(xPos + 2, yPos + 58, 83, 10, [250, 250, 250]);
+            drawBox(xPos + 2, yPos + 58, 83, 10, colors.light);
             doc.setFontSize(7);
             doc.setFont("helvetica", "normal");
             const captionLines = doc.splitTextToSize(photo.caption, 80);
@@ -501,19 +502,18 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
     yPos = 20;
   }
   
-  // Signature section header
-  drawBox(0, yPos - 5, 210, 12, colors.primary);
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("TANDA TANGAN", 105, yPos + 2, { align: "center" });
-  doc.setTextColor(0, 0, 0);
-  
-  yPos += 10;
+  // Signature section title
+  drawSectionTitle("TANDA TANGAN", yPos);
+  yPos += 6;
   
   // Create signature table
   const sigStartY = yPos;
   
+  // Narrower, centered signature table (more professional proportions)
+  const sigTableWidth = 160;
+  const sigLeft = (pageWidth - sigTableWidth) / 2;
+  const sigColWidth = sigTableWidth / 2;
+
   autoTable(doc, {
     startY: sigStartY,
     head: [["Pemilik/Penanggung Jawab", "Teknisi"]],
@@ -524,23 +524,23 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
       textColor: [0, 0, 0],
       fontStyle: 'bold',
       halign: 'center',
-      lineColor: colors.primary,
-      lineWidth: 0.5,
+      lineColor: colors.border,
+      lineWidth: 0.3,
       fontSize: 9,
       cellPadding: 3,
     },
     styles: {
       fontSize: 9,
       cellPadding: 3,
-      minCellHeight: 30,
-      lineColor: colors.primary,
-      lineWidth: 0.5,
+      minCellHeight: 34,
+      lineColor: colors.border,
+      lineWidth: 0.3,
     },
     columnStyles: {
-      0: { cellWidth: 95, halign: 'center' },
-      1: { cellWidth: 85, halign: 'center' },
+      0: { cellWidth: sigColWidth, halign: 'center' },
+      1: { cellWidth: sigColWidth, halign: 'center' },
     },
-    margin: { left: 15, right: 15 },
+    margin: { left: sigLeft, right: sigLeft },
     tableWidth: 'auto',
     didDrawCell: function(data) {
       // Draw signatures in the body cells
@@ -548,25 +548,25 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
         if (data.column.index === 0 && signatureClient) {
           // Client signature (left)
           try {
-            doc.addImage(signatureClient, "PNG", data.cell.x + 17, data.cell.y + 3, 60, 18);
+            doc.addImage(signatureClient, "PNG", data.cell.x + (data.cell.width - 60) / 2, data.cell.y + 4, 60, 18);
           } catch (e) {
             console.error("Failed to add client signature:", e);
           }
           // Name below signature
           doc.setFontSize(8);
           doc.setFont("helvetica", "normal");
-          doc.text(signatureClientName || clientName || '', data.cell.x + data.cell.width / 2, data.cell.y + 25, { align: 'center' });
+          doc.text(signatureClientName || clientName || '', data.cell.x + data.cell.width / 2, data.cell.y + 26, { align: 'center' });
         } else if (data.column.index === 1 && signatureTechnician) {
           // Technician signature (right)
           try {
-            doc.addImage(signatureTechnician, "PNG", data.cell.x + 12, data.cell.y + 3, 60, 18);
+            doc.addImage(signatureTechnician, "PNG", data.cell.x + (data.cell.width - 60) / 2, data.cell.y + 4, 60, 18);
           } catch (e) {
             console.error("Failed to add technician signature:", e);
           }
           // Name below signature
           doc.setFontSize(8);
           doc.setFont("helvetica", "normal");
-          doc.text(signatureTechnicianName || technicianName || '', data.cell.x + data.cell.width / 2, data.cell.y + 25, { align: 'center' });
+          doc.text(signatureTechnicianName || technicianName || '', data.cell.x + data.cell.width / 2, data.cell.y + 26, { align: 'center' });
         }
       }
     }
@@ -575,7 +575,7 @@ export async function generateTechnicalReportPDF(data: WorkLogData): Promise<Blo
   yPos = (doc as any).lastAutoTable.finalY + 5;
   
   // Date badge
-  drawBox(15, yPos, 80, 8, colors.light, colors.primary);
+  drawBox(15, yPos, 80, 8, colors.light, colors.border);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.text(`Tanggal: ${signatureDate ? new Date(signatureDate).toLocaleDateString("id-ID", { day: '2-digit', month: 'long', year: 'numeric' }) : ""}`, 55, yPos + 5, { align: "center" });
