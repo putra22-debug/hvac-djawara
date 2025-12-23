@@ -117,8 +117,11 @@ export default function TechnicianLoginPage() {
                 onClick={() => router.push("/technician/verify")}
                 className="p-0 h-auto"
               >
-                Verifikasi token teknisi
+                Aktivasi via token (cadangan)
               </Button>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Jika menerima email undangan, buka link di email untuk membuat password.
+              </p>
             </div>
           </form>
         </CardContent>

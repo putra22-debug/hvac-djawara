@@ -37,6 +37,28 @@ export default function TechnicianInvitePage() {
 
         const supabase = createClient()
 
+        // Support implicit-flow invite links that come back with tokens in the URL hash
+        // Example: /technician/invite#access_token=...&refresh_token=...&type=invite
+        if (typeof window !== 'undefined' && window.location.hash) {
+          const hash = window.location.hash.startsWith('#')
+            ? window.location.hash.slice(1)
+            : window.location.hash
+          const hashParams = new URLSearchParams(hash)
+          const accessToken = hashParams.get('access_token')
+          const refreshToken = hashParams.get('refresh_token')
+
+          if (accessToken && refreshToken) {
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            })
+            if (error) throw error
+
+            // Clean URL (remove tokens)
+            router.replace('/technician/invite')
+          }
+        }
+
         // Support PKCE email links (newer Supabase behavior)
         if (authCode) {
           const { error } = await supabase.auth.exchangeCodeForSession(authCode)
