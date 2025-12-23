@@ -161,6 +161,9 @@ export function PeopleManagementClient({
   const [avatarZoom, setAvatarZoom] = useState(1)
   const [avatarCroppedAreaPixels, setAvatarCroppedAreaPixels] = useState<any>(null)
   const [resendingTechId, setResendingTechId] = useState<string | null>(null)
+  const [technicianActivationMeta, setTechnicianActivationMeta] = useState<
+    Record<string, { url: string; message: string }>
+  >({})
   const [newMember, setNewMember] = useState({
     fullName: '',
     email: '',
@@ -212,34 +215,25 @@ export function PeopleManagementClient({
         warningText.toLowerCase().includes('recovery') ||
         warningText.toLowerCase().includes('reset')
 
-      const copyLinkAction = verifyUrl
-        ? {
-            label: 'Salin link',
-            onClick: async () => {
-              try {
-                await navigator.clipboard.writeText(verifyUrl)
-                toast.success('Link aktivasi berhasil disalin')
-              } catch {
-                // Clipboard might be blocked; show manual copy only on explicit user request.
-                try {
-                  window.prompt('Copy link aktivasi ini:', verifyUrl)
-                } catch {
-                  // ignore
-                }
-              }
-            },
-          }
-        : undefined
+      const message = result.tokenSent
+        ? isRecovery
+          ? 'Email reset password dikirim. Jika tidak masuk, kirim link di bawah via WhatsApp.'
+          : 'Email aktivasi dikirim. Jika tidak masuk, kirim link di bawah via WhatsApp.'
+        : 'Tidak bisa kirim email otomatis. Kirim link di bawah via WhatsApp.'
+
+      setTechnicianActivationMeta((prev) => ({
+        ...prev,
+        [technicianId]: {
+          url: verifyUrl,
+          message: verifyUrl ? message : `${message} (Link belum tersedia)`
+        }
+      }))
 
       if (result.tokenSent) {
         if (isRecovery) {
-          toast.info('Akun sudah terdaftar. Email reset password dikirim (cek inbox/spam).', {
-            action: copyLinkAction,
-          })
+          toast.info('Akun sudah terdaftar. Email reset password dikirim (cek inbox/spam).')
         } else {
-          toast.success('Link aktivasi dikirim ke email teknisi (cek inbox/spam).', {
-            action: copyLinkAction,
-          })
+          toast.success('Link aktivasi dikirim ke email teknisi (cek inbox/spam).')
         }
         return
       }
@@ -252,9 +246,8 @@ export function PeopleManagementClient({
       if (verifyUrl) {
         toast.warning(
           reason
-            ? `Tidak bisa kirim email otomatis (${reason}). Gunakan link manual.`
-            : 'Tidak bisa kirim email otomatis. Gunakan link manual.',
-          { action: copyLinkAction }
+            ? `Tidak bisa kirim email otomatis (${reason}). Link tersedia di card untuk dicopy.`
+            : 'Tidak bisa kirim email otomatis. Link tersedia di card untuk dicopy.'
         )
       } else {
         toast.warning(reason || 'Email gagal dikirim. Coba lagi.')
@@ -698,17 +691,28 @@ export function PeopleManagementClient({
           toast.success('Technician activation link generated.')
         }
 
-        if (result.verifyUrl) {
-          try {
-            await navigator.clipboard.writeText(result.verifyUrl)
-            toast.success('Activation link copied to clipboard!')
-          } catch {
-            try {
-              window.prompt('Copy activation link:', result.verifyUrl)
-            } catch {
-              // ignore
-            }
-          }
+        // Store activation link on the technician card as a WhatsApp fallback.
+        // Avoid auto-copy/popup prompts; admin can copy from the card when needed.
+        const technicianId = String(result.technicianId || '')
+        const verifyUrl = String(result.verifyUrl || '')
+        const warningText = String(result.warning || '')
+        const isRecovery =
+          warningText.toLowerCase().includes('recovery') ||
+          warningText.toLowerCase().includes('reset')
+        const message = result.tokenSent
+          ? isRecovery
+            ? 'Email reset password dikirim. Jika tidak masuk, kirim link di bawah via WhatsApp.'
+            : 'Email aktivasi dikirim. Jika tidak masuk, kirim link di bawah via WhatsApp.'
+          : 'Tidak bisa kirim email otomatis. Kirim link di bawah via WhatsApp.'
+
+        if (technicianId) {
+          setTechnicianActivationMeta((prev) => ({
+            ...prev,
+            [technicianId]: {
+              url: verifyUrl,
+              message: verifyUrl ? message : `${message} (Link belum tersedia)`,
+            },
+          }))
         }
 
         if (activeTab === 'technicians') {
@@ -1131,6 +1135,48 @@ export function PeopleManagementClient({
                             <RefreshCw className="w-4 h-4 mr-2" />
                             {resendingTechId === t.id ? 'Mengirim...' : 'Kirim ulang link aktivasi'}
                           </Button>
+
+                          {technicianActivationMeta[t.id]?.message && (
+                            <p className="mt-3 text-xs text-muted-foreground">
+                              {technicianActivationMeta[t.id]?.message}
+                            </p>
+                          )}
+
+                          {technicianActivationMeta[t.id]?.url && (
+                            <div className="mt-2">
+                              <p className="text-xs text-muted-foreground mb-1">
+                                Link manual (WhatsApp)
+                              </p>
+                              <div className="flex items-center gap-2">
+                              <Input
+                                readOnly
+                                value={technicianActivationMeta[t.id].url}
+                                className="text-xs"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                aria-label="Copy activation link"
+                                onClick={async () => {
+                                  const url = technicianActivationMeta[t.id].url
+                                  try {
+                                    await navigator.clipboard.writeText(url)
+                                    toast.success('Link aktivasi disalin')
+                                  } catch {
+                                    try {
+                                      window.prompt('Copy link aktivasi ini:', url)
+                                    } catch {
+                                      // ignore
+                                    }
+                                  }
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </CardContent>
