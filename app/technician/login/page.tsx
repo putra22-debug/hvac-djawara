@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,15 +8,44 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, User } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function TechnicianLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
+  const code = useMemo(() => searchParams.get('code') || '', [searchParams]);
+  const type = useMemo(() => searchParams.get('type') || '', [searchParams]);
+
+  // Safety net: invite links sometimes land on /technician/login.
+  // If we detect invite parameters/tokens, redirect to /technician/invite to set password.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const hash = window.location.hash || '';
+    const hasInviteHashToken = hash.includes('access_token=') && hash.includes('refresh_token=');
+
+    if (hasInviteHashToken) {
+      router.replace(`/technician/invite${hash}`);
+      return;
+    }
+
+    if (code) {
+      const qs = new URLSearchParams();
+      qs.set('code', code);
+      router.replace(`/technician/invite?${qs.toString()}`);
+      return;
+    }
+
+    if (type === 'invite') {
+      router.replace('/technician/invite');
+    }
+  }, [code, type, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
