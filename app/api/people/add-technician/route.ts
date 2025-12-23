@@ -11,6 +11,25 @@ type Body = {
   role?: "technician" | "supervisor" | "team_lead";
 };
 
+function getBaseUrlFromRequest(request: Request) {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  if (envUrl) {
+    try {
+      return new URL(envUrl).origin;
+    } catch {
+      // ignore
+    }
+  }
+
+  const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
+  const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  if (forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+
+  return "https://hvac-djawara.vercel.app";
+}
+
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -141,10 +160,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://hvac-djawara.vercel.app";
+    const baseUrl = getBaseUrlFromRequest(request);
 
     // Preferred: Supabase built-in invite email (no Resend needed)
     const redirectTo = `${baseUrl}/technician/invite`;
@@ -161,6 +177,7 @@ export async function POST(request: Request) {
     if (!inviteError) {
       // Generate action link so admin can send manually if email delivery is delayed
       let verifyUrl: string | undefined;
+      let debugRedirectTo: string | undefined;
       try {
         const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
           type: "invite",
@@ -169,6 +186,13 @@ export async function POST(request: Request) {
         });
         if (!linkError) {
           verifyUrl = (linkData as any)?.properties?.action_link as string | undefined;
+          if (verifyUrl) {
+            try {
+              debugRedirectTo = new URL(verifyUrl).searchParams.get("redirect_to") || undefined;
+            } catch {
+              // ignore
+            }
+          }
         }
       } catch {
         // ignore - invite already created
@@ -180,6 +204,11 @@ export async function POST(request: Request) {
         email,
         tokenSent: true,
         verifyUrl,
+        debug: {
+          baseUrl,
+          redirectTo,
+          debugRedirectTo,
+        },
       });
     }
 
