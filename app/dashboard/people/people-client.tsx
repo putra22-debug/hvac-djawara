@@ -209,7 +209,13 @@ export function PeopleManagementClient({
       const verifyUrl = String(result.verifyUrl || '')
 
       if (result.tokenSent) {
-        toast.success('Link aktivasi berhasil dikirim ke email teknisi')
+        const warningText = String(result.warning || '')
+        const isRecovery = warningText.toLowerCase().includes('recovery') || warningText.toLowerCase().includes('reset')
+        if (isRecovery) {
+          toast.info('Akun sudah terdaftar. Email reset password dikirim (jika masuk).')
+        } else {
+          toast.success('Link aktivasi berhasil dikirim ke email teknisi')
+        }
 
         // Also copy link for manual sharing if available
         if (verifyUrl) {
@@ -686,14 +692,28 @@ export function PeopleManagementClient({
 
       if (technicianFlow) {
         if (result.tokenSent) {
-          toast.success('Technician activation link sent to email (if configured).')
+          const warningText = String(result.warning || '')
+          const isRecovery = warningText.toLowerCase().includes('recovery') || warningText.toLowerCase().includes('reset')
+          if (isRecovery) {
+            toast.info('Technician already exists. Sent reset password email (if delivered).')
+          } else {
+            toast.success('Technician activation link sent to email (if delivered).')
+          }
         } else {
           toast.success('Technician activation link generated.')
         }
 
-        if (result.verifyUrl && navigator.clipboard) {
-          await navigator.clipboard.writeText(result.verifyUrl)
-          toast.success('Activation link copied to clipboard!')
+        if (result.verifyUrl) {
+          try {
+            await navigator.clipboard.writeText(result.verifyUrl)
+            toast.success('Activation link copied to clipboard!')
+          } catch {
+            try {
+              window.prompt('Copy activation link:', result.verifyUrl)
+            } catch {
+              // ignore
+            }
+          }
         }
 
         if (activeTab === 'technicians') {
