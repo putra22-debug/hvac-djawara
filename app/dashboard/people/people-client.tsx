@@ -207,60 +207,55 @@ export function PeopleManagementClient({
       }
 
       const verifyUrl = String(result.verifyUrl || '')
+      const warningText = String(result.warning || '')
+      const isRecovery =
+        warningText.toLowerCase().includes('recovery') ||
+        warningText.toLowerCase().includes('reset')
+
+      const copyLinkAction = verifyUrl
+        ? {
+            label: 'Salin link',
+            onClick: async () => {
+              try {
+                await navigator.clipboard.writeText(verifyUrl)
+                toast.success('Link aktivasi berhasil disalin')
+              } catch {
+                // Clipboard might be blocked; show manual copy only on explicit user request.
+                try {
+                  window.prompt('Copy link aktivasi ini:', verifyUrl)
+                } catch {
+                  // ignore
+                }
+              }
+            },
+          }
+        : undefined
 
       if (result.tokenSent) {
-        const warningText = String(result.warning || '')
-        const isRecovery = warningText.toLowerCase().includes('recovery') || warningText.toLowerCase().includes('reset')
         if (isRecovery) {
-          toast.info('Akun sudah terdaftar. Email reset password dikirim (jika masuk).')
+          toast.info('Akun sudah terdaftar. Email reset password dikirim (cek inbox/spam).', {
+            action: copyLinkAction,
+          })
         } else {
-          toast.success('Link aktivasi berhasil dikirim ke email teknisi')
-        }
-
-        // Also copy link for manual sharing if available
-        if (verifyUrl) {
-          try {
-            await navigator.clipboard.writeText(verifyUrl)
-            toast.success('Link aktivasi dicopy ke clipboard')
-          } catch {
-            // Clipboard might be blocked; provide manual copy fallback.
-            try {
-              window.prompt('Copy link aktivasi ini:', verifyUrl)
-            } catch {
-              // ignore
-            }
-          }
+          toast.success('Link aktivasi dikirim ke email teknisi (cek inbox/spam).', {
+            action: copyLinkAction,
+          })
         }
         return
       }
 
-      // Email service belum siap / gagal kirim: copy link agar bisa dikirim manual via WA
+      // Email gagal / tidak bisa dikirim otomatis: berikan link manual sebagai fallback
       const reasonRaw = String(result.warning || '').trim()
       const reason = reasonRaw
         ? (reasonRaw.length > 140 ? `${reasonRaw.slice(0, 140)}...` : reasonRaw)
         : ''
       if (verifyUrl) {
-        try {
-          await navigator.clipboard.writeText(verifyUrl)
-          toast.warning(
-            reason
-              ? `Email gagal dikirim (${reason}). Link aktivasi sudah dicopy (kirim via WhatsApp).`
-              : 'Email gagal dikirim. Link aktivasi sudah dicopy (kirim via WhatsApp).'
-          )
-        } catch {
-          // Clipboard might be blocked; provide manual copy fallback.
-          try {
-            window.prompt('Copy link aktivasi ini:', verifyUrl)
-          } catch {
-            // ignore
-          }
-
-          toast.warning(
-            reason
-              ? `Email gagal dikirim (${reason}). Link aktivasi ditampilkan untuk dicopy manual.`
-              : 'Email gagal dikirim. Link aktivasi ditampilkan untuk dicopy manual.'
-          )
-        }
+        toast.warning(
+          reason
+            ? `Tidak bisa kirim email otomatis (${reason}). Gunakan link manual.`
+            : 'Tidak bisa kirim email otomatis. Gunakan link manual.',
+          { action: copyLinkAction }
+        )
       } else {
         toast.warning(reason || 'Email gagal dikirim. Coba lagi.')
       }
@@ -695,9 +690,9 @@ export function PeopleManagementClient({
           const warningText = String(result.warning || '')
           const isRecovery = warningText.toLowerCase().includes('recovery') || warningText.toLowerCase().includes('reset')
           if (isRecovery) {
-            toast.info('Technician already exists. Sent reset password email (if delivered).')
+            toast.info('Akun teknisi sudah ada. Email reset password dikirim (cek inbox/spam).')
           } else {
-            toast.success('Technician activation link sent to email (if delivered).')
+            toast.success('Link aktivasi teknisi dikirim ke email (cek inbox/spam).')
           }
         } else {
           toast.success('Technician activation link generated.')
