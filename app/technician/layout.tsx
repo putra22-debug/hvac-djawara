@@ -24,7 +24,7 @@ export default function TechnicianLayout({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Pages that don't need sidebar
-  const noSidebarPages = ["/technician/login", "/technician/verify"];
+  const noSidebarPages = ["/technician/login", "/technician/verify", "/technician/invite"];
   const showSidebar = !noSidebarPages.includes(pathname);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function TechnicianLayout({
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Allow access to verify and login pages without auth
+      // Allow access to invite/verify/login pages without auth
       if (noSidebarPages.includes(pathname)) {
         setLoading(false);
         return;
