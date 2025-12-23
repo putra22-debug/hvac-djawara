@@ -26,47 +26,6 @@ function generateToken(length = 32) {
     .slice(0, length);
 }
 
-async function sendResendEmail(args: {
-  to: string;
-  subject: string;
-  text: string;
-  html: string;
-}) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-
-  if (!apiKey || !from) {
-    return { sent: false, error: "Missing RESEND_API_KEY or RESEND_FROM_EMAIL" };
-  }
-
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: [args.to],
-      subject: args.subject,
-      text: args.text,
-      html: args.html,
-    }),
-  });
-
-  if (!res.ok) {
-    let details = "";
-    try {
-      details = await res.text();
-    } catch {
-      // ignore
-    }
-    return { sent: false, error: `Resend error: ${res.status} ${details}` };
-  }
-
-  return { sent: true, error: null as string | null };
-}
-
 export async function POST(request: Request) {
   try {
     const supabase = await createSupabaseServerClient();
@@ -182,6 +141,33 @@ export async function POST(request: Request) {
       }
     }
 
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "https://hvac-djawara.vercel.app";
+
+    // Preferred: Supabase built-in invite email (no Resend needed)
+    const redirectTo = `${baseUrl}/technician/invite`;
+    const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo,
+      data: {
+        role: "technician",
+        is_technician: true,
+        tenant_id: tenantId,
+        technician_id: technicianId,
+      },
+    });
+
+    if (!inviteError) {
+      return NextResponse.json({
+        success: true,
+        technicianId,
+        email,
+        tokenSent: true,
+      });
+    }
+
+    // Fallback: generate token + manual link (admin can send via WhatsApp)
     let token: string | null = null;
 
     const { data: tokenData, error: tokenError } = await admin.rpc("generate_technician_token", {
@@ -208,42 +194,18 @@ export async function POST(request: Request) {
       }
     }
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://hvac-djawara.vercel.app";
-
     const verifyUrl = `${baseUrl}/technician/verify?email=${encodeURIComponent(email)}&token=${encodeURIComponent(
       token
     )}`;
-
-    const emailSubject = "Aktivasi Akun Teknisi - HVAC Djawara";
-    const emailText = `Halo ${fullName},\n\nSilakan aktivasi akun teknisi Anda dengan membuka link berikut:\n${verifyUrl}\n\nLink ini berlaku selama 7 hari.\n\nTerima kasih.`;
-    const emailHtml = `
-      <div>
-        <p>Halo ${fullName},</p>
-        <p>Silakan aktivasi akun teknisi Anda dengan membuka link berikut:</p>
-        <p><a href="${verifyUrl}">${verifyUrl}</a></p>
-        <p>Link ini berlaku selama 7 hari.</p>
-        <p>Terima kasih.</p>
-      </div>
-    `;
-
-    const sendResult = await sendResendEmail({
-      to: email,
-      subject: emailSubject,
-      text: emailText,
-      html: emailHtml,
-    });
 
     return NextResponse.json({
       success: true,
       technicianId,
       email,
-      tokenSent: sendResult.sent,
+      tokenSent: false,
       verifyUrl,
-      token: sendResult.sent ? undefined : token,
-      warning: sendResult.sent ? undefined : sendResult.error,
+      token,
+      warning: inviteError.message || "Supabase invite email failed",
     });
   } catch (error: any) {
     console.error("Error in add-technician API:", error);
