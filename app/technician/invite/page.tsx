@@ -47,6 +47,21 @@ export default function TechnicianInvitePage() {
     return { accessToken, refreshToken, type }
   }
 
+  function getHashError() {
+    if (typeof window === 'undefined') return null
+    if (!window.location.hash) return null
+
+    const hash = window.location.hash.startsWith('#')
+      ? window.location.hash.slice(1)
+      : window.location.hash
+    const hashParams = new URLSearchParams(hash)
+    const errorCode = hashParams.get('error_code') || ''
+    const errorDescription = hashParams.get('error_description') || ''
+    const error = hashParams.get('error') || ''
+    if (!error && !errorCode && !errorDescription) return null
+    return { error, errorCode, errorDescription }
+  }
+
   useEffect(() => {
     let isMounted = true
 
@@ -56,6 +71,26 @@ export default function TechnicianInvitePage() {
         setErrorMessage(null)
 
         const supabase = createClient()
+
+        // If Supabase redirected here with an error (e.g. otp_expired), show a helpful message.
+        const hashError = getHashError()
+        if (hashError?.errorCode) {
+          const code = hashError.errorCode.toLowerCase()
+          if (code === 'otp_expired') {
+            setErrorMessage(
+              'Link undangan sudah expired atau sudah pernah dipakai. Silakan minta admin kirim ulang undangan (lebih aman pakai link manual dari dashboard / salin-tempel ke browser).'
+            )
+          } else {
+            setErrorMessage(
+              decodeURIComponent(hashError.errorDescription || '') ||
+                'Link undangan tidak valid atau sudah expired. Silakan minta admin kirim ulang undangan.'
+            )
+          }
+
+          // Clear hash so refresh doesn't keep the same error state
+          router.replace('/technician/invite')
+          return
+        }
 
         // 1) Hash tokens (implicit) OR query tokens (some clients drop the hash)
         const hashTokens = getHashTokens()
