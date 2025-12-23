@@ -198,6 +198,10 @@ export function PeopleManagementClient({
       })
 
       const result = await response.json()
+      if (response.status === 409) {
+        toast.info(result.error || 'Teknisi sudah aktif')
+        return
+      }
       if (!response.ok) {
         throw new Error(result.error || 'Gagal mengirim ulang link aktivasi')
       }
@@ -1022,7 +1026,9 @@ export function PeopleManagementClient({
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {technicianCards.map((t) => {
-                const isActive = !!t.is_verified && !!t.user_id
+                // Consider activated when either linked to auth user OR marked verified.
+                // Some records may have only one of these fields set, so use OR.
+                const isActive = !!t.user_id || !!t.is_verified
                 const initials = (t.full_name || 'T').charAt(0).toUpperCase()
 
                 return (
