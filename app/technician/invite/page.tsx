@@ -72,6 +72,25 @@ export default function TechnicianInvitePage() {
 
         const supabase = createClient()
 
+        // If someone is already logged in (e.g. admin testing in the same browser),
+        // signing out first avoids binding/changing the wrong account.
+        const hasIncomingAuthParams =
+          Boolean(authCode) ||
+          Boolean(tokenHash && tokenType) ||
+          Boolean(queryAccessToken && queryRefreshToken) ||
+          (typeof window !== 'undefined' && Boolean(window.location.hash))
+
+        if (hasIncomingAuthParams) {
+          try {
+            const { data } = await supabase.auth.getUser()
+            if (data?.user) {
+              await supabase.auth.signOut()
+            }
+          } catch {
+            // ignore
+          }
+        }
+
         // If Supabase redirected here with an error (e.g. otp_expired), show a helpful message.
         const hashError = getHashError()
         if (hashError?.errorCode) {
