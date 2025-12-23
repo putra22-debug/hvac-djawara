@@ -27,6 +27,26 @@ export default function TechnicianInvitePage() {
 
   const authCode = useMemo(() => searchParams.get('code') || '', [searchParams])
 
+  const tokenHash = useMemo(() => searchParams.get('token_hash') || '', [searchParams])
+  const tokenType = useMemo(() => searchParams.get('type') || '', [searchParams])
+
+  const queryAccessToken = useMemo(() => searchParams.get('access_token') || '', [searchParams])
+  const queryRefreshToken = useMemo(() => searchParams.get('refresh_token') || '', [searchParams])
+
+  function getHashTokens() {
+    if (typeof window === 'undefined') return null
+    if (!window.location.hash) return null
+
+    const hash = window.location.hash.startsWith('#')
+      ? window.location.hash.slice(1)
+      : window.location.hash
+    const hashParams = new URLSearchParams(hash)
+    const accessToken = hashParams.get('access_token') || ''
+    const refreshToken = hashParams.get('refresh_token') || ''
+    const type = hashParams.get('type') || ''
+    return { accessToken, refreshToken, type }
+  }
+
   useEffect(() => {
     let isMounted = true
 
@@ -37,35 +57,33 @@ export default function TechnicianInvitePage() {
 
         const supabase = createClient()
 
-        // Support implicit-flow invite links that come back with tokens in the URL hash
-        // Example: /technician/invite#access_token=...&refresh_token=...&type=invite
-        if (typeof window !== 'undefined' && window.location.hash) {
-          const hash = window.location.hash.startsWith('#')
-            ? window.location.hash.slice(1)
-            : window.location.hash
-          const hashParams = new URLSearchParams(hash)
-          const accessToken = hashParams.get('access_token')
-          const refreshToken = hashParams.get('refresh_token')
-
-          if (accessToken && refreshToken) {
-            const { error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            })
-            if (error) throw error
-
-            // Clean URL (remove tokens)
-            router.replace('/technician/invite')
-          }
+        // 1) Hash tokens (implicit) OR query tokens (some clients drop the hash)
+        const hashTokens = getHashTokens()
+        const accessToken = (hashTokens?.accessToken || queryAccessToken || '').trim()
+        const refreshToken = (hashTokens?.refreshToken || queryRefreshToken || '').trim()
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+          if (error) throw error
+          router.replace('/technician/invite')
         }
 
-        // Support PKCE email links (newer Supabase behavior)
+        // 2) PKCE code (newer Supabase behavior)
         if (authCode) {
           const { error } = await supabase.auth.exchangeCodeForSession(authCode)
-          if (error) {
-            throw error
-          }
-          // Remove code param from URL for cleanliness
+          if (error) throw error
+          router.replace('/technician/invite')
+        }
+
+        // 3) token_hash verification (if the app is hit directly with token_hash/type)
+        if (!authCode && tokenHash && tokenType) {
+          const { error } = await supabase.auth.verifyOtp({
+            type: tokenType as any,
+            token_hash: tokenHash,
+          })
+          if (error) throw error
           router.replace('/technician/invite')
         }
 
@@ -74,7 +92,15 @@ export default function TechnicianInvitePage() {
           error: userError,
         } = await supabase.auth.getUser()
 
-        if (userError) throw userError
+        if (userError) {
+          const msg = String((userError as any)?.message || '')
+          // Treat "Auth session missing!" as a normal invalid/expired invite case.
+          if (msg.toLowerCase().includes('auth session missing')) {
+            setErrorMessage('Link undangan tidak valid atau sudah expired. Silakan minta admin kirim ulang undangan.')
+            return
+          }
+          throw userError
+        }
         if (!user) {
           setErrorMessage('Link undangan tidak valid atau sudah expired. Silakan minta admin kirim ulang undangan.')
           return
@@ -94,7 +120,7 @@ export default function TechnicianInvitePage() {
     return () => {
       isMounted = false
     }
-  }, [authCode, router])
+  }, [authCode, queryAccessToken, queryRefreshToken, router, tokenHash, tokenType])
 
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
