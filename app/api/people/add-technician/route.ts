@@ -224,6 +224,48 @@ export async function POST(request: Request) {
       });
     }
 
+    // If user already exists in Supabase Auth, invite can't be sent.
+    // In that case, send a recovery email instead (technician can set a password).
+    const inviteMessage = String((inviteError as any)?.message || '').toLowerCase();
+    if (inviteMessage.includes('already been registered')) {
+      const { error: recoveryEmailError } = await admin.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+
+      if (!recoveryEmailError) {
+        let verifyUrl: string | undefined;
+        try {
+          const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+            type: 'recovery',
+            email,
+            options: { redirectTo },
+          });
+          if (!linkError) {
+            const props = (linkData as any)?.properties as any;
+            const hashedToken = (props?.hashed_token as string | undefined) || undefined;
+            if (hashedToken) {
+              verifyUrl = `${baseUrl}/technician/invite?token_hash=${encodeURIComponent(
+                hashedToken
+              )}&type=recovery`;
+            } else {
+              verifyUrl = (props?.action_link as string | undefined) || undefined;
+            }
+          }
+        } catch {
+          // ignore
+        }
+
+        return NextResponse.json({
+          success: true,
+          technicianId,
+          email,
+          tokenSent: true,
+          verifyUrl,
+          warning: 'User already exists; sent recovery email instead of invite',
+        });
+      }
+    }
+
     // Fallback: generate token + manual link (admin can send via WhatsApp)
     let token: string | null = null;
 
