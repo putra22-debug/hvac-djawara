@@ -159,11 +159,27 @@ export async function POST(request: Request) {
     });
 
     if (!inviteError) {
+      // Generate action link so admin can send manually if email delivery is delayed
+      let verifyUrl: string | undefined;
+      try {
+        const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+          type: "invite",
+          email,
+          options: { redirectTo },
+        });
+        if (!linkError) {
+          verifyUrl = (linkData as any)?.properties?.action_link as string | undefined;
+        }
+      } catch {
+        // ignore - invite already created
+      }
+
       return NextResponse.json({
         success: true,
         technicianId,
         email,
         tokenSent: true,
+        verifyUrl,
       });
     }
 

@@ -206,13 +206,24 @@ export function PeopleManagementClient({
         throw new Error(result.error || 'Gagal mengirim ulang link aktivasi')
       }
 
+      const verifyUrl = String(result.verifyUrl || '')
+
       if (result.tokenSent) {
         toast.success('Link aktivasi berhasil dikirim ke email teknisi')
+
+        // Also copy link for manual sharing if available
+        if (verifyUrl) {
+          try {
+            await navigator.clipboard.writeText(verifyUrl)
+            toast.success('Link aktivasi dicopy ke clipboard')
+          } catch {
+            // ignore
+          }
+        }
         return
       }
 
       // Email service belum siap / gagal kirim: copy link agar bisa dikirim manual via WA
-      const verifyUrl = String(result.verifyUrl || '')
       const reasonRaw = String(result.warning || '').trim()
       const reason = reasonRaw
         ? (reasonRaw.length > 140 ? `${reasonRaw.slice(0, 140)}...` : reasonRaw)
