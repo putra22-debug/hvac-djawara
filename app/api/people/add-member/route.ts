@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .single()
 
-    if (!userRole || !['owner', 'admin_finance', 'admin_logistic'].includes(userRole.role)) {
+    if (!userRole || !['owner', 'admin_finance', 'admin_logistic', 'tech_head'].includes(userRole.role)) {
       return NextResponse.json(
         { error: 'Only owners and admins can add members' },
         { status: 403 }
@@ -66,7 +66,9 @@ export async function POST(request: Request) {
 
     // Generate invitation URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://hvac-djawara.vercel.app'
-    const invitationUrl = `${baseUrl}/invite/${invitationToken}`
+    // NOTE: /invite/[token] is used by Client Portal invitations.
+    // Team member invitations use a separate route.
+    const invitationUrl = `${baseUrl}/team/invite/${invitationToken}`
 
     // TODO: Send email with invitation link
     // For now, return the invitation URL

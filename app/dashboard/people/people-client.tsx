@@ -746,12 +746,12 @@ export function PeopleManagementClient({
   }
 
   const addableRoles = roleHierarchy.filter(r =>
-    ['sales_partner', 'marketing', 'business_dev', 'technician', 'supervisor', 'team_lead'].includes(r.role_name)
+    ['sales_partner', 'marketing', 'business_dev', 'technician', 'supervisor', 'team_lead', 'helper', 'magang'].includes(r.role_name)
   )
 
   const copyInvitationLink = async (token: string) => {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://hvac-djawara.vercel.app'
-    const invitationUrl = `${baseUrl}/invite/${token}`
+    const invitationUrl = `${baseUrl}/team/invite/${token}`
     
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(invitationUrl)
@@ -923,7 +923,7 @@ export function PeopleManagementClient({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {partnerRecords.map((partner) => {
                 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://hvac-djawara.vercel.app'
-                const invitationUrl = `${baseUrl}/invite/${partner.token}`
+                const invitationUrl = `${baseUrl}/team/invite/${partner.token}`
                 const expiryDate = new Date(partner.expires_at)
                 const isExpired = expiryDate < new Date()
                 const isActivated = partner.status === 'accepted'
