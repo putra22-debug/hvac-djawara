@@ -80,7 +80,6 @@ const sidebarItems: SidebarItem[] = [
     title: "Pengaturan",
     href: "/technician/settings",
     icon: Settings,
-    disabled: true,
     description: "Data diri & preferensi",
   },
 ];

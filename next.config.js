@@ -8,6 +8,29 @@ const withPWA = require('next-pwa')({
   register: true,
   skipWaiting: true,
   runtimeCaching: [
+    // PWA manifest + icons (avoid long-lived stale icon after install/update)
+    {
+      urlPattern: /^\/manifest\.webmanifest$/,
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'pwa-manifest',
+        expiration: {
+          maxEntries: 5,
+          maxAgeSeconds: 60 * 60 * 24,
+        },
+      },
+    },
+    {
+      urlPattern: /^\/(pwa-(?:192|512)\.png|pwa-maskable-512\.png)$/,
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'pwa-icons',
+        expiration: {
+          maxEntries: 10,
+          maxAgeSeconds: 60 * 60 * 24,
+        },
+      },
+    },
     // Next.js build assets
     {
       urlPattern: /^\/(_next\/static\/.*)$/,

@@ -1,8 +1,8 @@
 # Djawara HVAC Platform
 
-> **Last Updated:** December 22, 2025  
+> **Last Updated:** December 25, 2025  
 > **Status:** ✅ Production Ready - People Management + Reimburse Live  
-> **Latest Updates:** Technician profile sync, Reimburse (Finance + Technician), Avatar crop & persistence
+> **Latest Updates:** Team invite activation (/team/invite), Helper/Magang roles enabled in People Management
 
 ---
 
@@ -10,12 +10,13 @@
 
 ### 📖 **CRITICAL: Read These Documents in Order**
 
-1. **[docs/ai-agent/2025-12-22-REIMBURSE-PEOPLE-TECHNICIAN-HANDOFF.md](docs/ai-agent/2025-12-22-REIMBURSE-PEOPLE-TECHNICIAN-HANDOFF.md)** ← **START HERE** - Latest session (Dec 22)
+1. **[docs/ai-agent/2025-12-25-TEAM-INVITE-HELPER-MAGANG-HANDOFF.md](docs/ai-agent/2025-12-25-TEAM-INVITE-HELPER-MAGANG-HANDOFF.md)** ← **START HERE** - Latest session (Dec 25)
+2. **[docs/ai-agent/2025-12-22-REIMBURSE-PEOPLE-TECHNICIAN-HANDOFF.md](docs/ai-agent/2025-12-22-REIMBURSE-PEOPLE-TECHNICIAN-HANDOFF.md)** - People Management + Reimburse (Dec 22)
 2. **[docs/ai-handoff/2025-12-21-TECHNICAL-DATA-ENHANCEMENTS.md](docs/ai-handoff/2025-12-21-TECHNICAL-DATA-ENHANCEMENTS.md)** - Technical data + PDF/inventory context
 3. **[PROJECT-SUMMARY.md](PROJECT-SUMMARY.md)** - System architecture overview
 4. **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Database structure reference
 
-### ✅ **Current System Status (December 22, 2025)**
+### ✅ **Current System Status (December 25, 2025)**
 
 **Core Features:**
 - PDF Generation: ✅ Working (optimized, no emojis, single signature)
@@ -34,6 +35,11 @@
 - ✅ Resend activation link for technicians
 - ✅ Reimburse module (Finance): categories + inbox + status actions
 - ✅ Reimburse module (Technician): submit + history + dashboard indicator
+
+**Newly Live (Dec 25):**
+- ✅ Team invitation activation flow for staff roles (`/team/invite/[token]`)
+- ✅ Helper & Magang roles enabled as addable roles in People Management
+- ✅ Fix: team invites no longer incorrectly use the client portal `/invite/[token]` route
 
 **Recent Enhancements (Dec 21):**
 - ✅ Inventory search in AC unit data entry (3 work types)
