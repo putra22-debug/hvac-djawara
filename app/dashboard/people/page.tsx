@@ -30,6 +30,19 @@ export default async function PeopleManagementPage() {
     redirect('/dashboard')
   }
 
+  const { data: roleRow } = await supabase
+    .from('user_tenant_roles')
+    .select('role')
+    .eq('tenant_id', profile.active_tenant_id)
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  const role = (roleRow as any)?.role ?? null
+  if (!role || !['owner', 'admin_finance', 'admin_logistic', 'tech_head'].includes(role)) {
+    redirect('/dashboard')
+  }
+
   // Fetch role hierarchy for display (fallback if view doesn't exist)
   const { data: roleHierarchy } = await supabase
     .from('role_hierarchy')

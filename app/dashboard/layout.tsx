@@ -53,9 +53,19 @@ export default async function DashboardLayout({
     .eq('id', user.id)
     .single()
 
+  const activeTenantId = profile?.active_tenant_id ?? null
+
+  const { data: activeRoleRow } = await supabase
+    .from('user_tenant_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .eq('tenant_id', activeTenantId)
+    .eq('is_active', true)
+    .maybeSingle()
+
   return (
     <div className="flex h-screen bg-gray-100">
-      <Sidebar />
+      <Sidebar role={(activeRoleRow as any)?.role ?? null} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header user={user} profile={profile} />

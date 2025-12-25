@@ -23,7 +23,11 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const navigation = [
+type SidebarProps = {
+  role?: string | null
+}
+
+const adminNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Clients', href: '/dashboard/clients', icon: Users },
   { name: 'Service Orders', href: '/dashboard/orders', icon: ClipboardList },
@@ -37,8 +41,19 @@ const navigation = [
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-export function Sidebar() {
+const salesPartnerNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Clients', href: '/dashboard/clients', icon: Users },
+  { name: 'Service Orders', href: '/dashboard/orders', icon: ClipboardList },
+  { name: 'Contract Management', href: '/dashboard/contracts', icon: FileText },
+  { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar },
+  { name: 'Finance', href: '/dashboard/finance', icon: DollarSign },
+  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+]
+
+export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname()
+  const navigation = role === 'sales_partner' ? salesPartnerNavigation : adminNavigation
 
   return (
     <div className="w-64 bg-gray-900 text-white flex flex-col">

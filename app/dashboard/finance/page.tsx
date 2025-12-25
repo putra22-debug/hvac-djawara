@@ -34,15 +34,20 @@ export default async function FinancePage() {
   }
 
   // Finance access only
-  const { data: roleRow } = await supabase
+  const { data: roleData } = await supabase
     .from('user_tenant_roles')
     .select('role')
     .eq('tenant_id', profile.active_tenant_id)
     .eq('user_id', user.id)
     .eq('is_active', true)
-    .maybeSingle()
+    .single()
 
-  if (!roleRow || !['owner', 'admin_finance'].includes(roleRow.role)) {
+  if (
+    !roleData ||
+    (roleData.role !== 'owner' &&
+      roleData.role !== 'admin_finance' &&
+      roleData.role !== 'sales_partner')
+  ) {
     redirect('/dashboard')
   }
 

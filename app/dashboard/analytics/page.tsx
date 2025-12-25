@@ -34,6 +34,19 @@ export default async function AnalyticsPage() {
     )
   }
 
+  const { data: roleRow } = await supabase
+    .from('user_tenant_roles')
+    .select('role')
+    .eq('tenant_id', profile.active_tenant_id)
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  const role = (roleRow as any)?.role ?? null
+  if (!role || !['owner', 'admin_finance', 'admin_logistic', 'tech_head'].includes(role)) {
+    redirect('/dashboard')
+  }
+
   // Mock data
   const stats = [
     { label: 'Total Revenue', value: 'Rp 125,000,000', icon: DollarSign, change: '+12.5%' },
