@@ -164,6 +164,10 @@ export function PeopleManagementClient({
   const [technicianActivationMeta, setTechnicianActivationMeta] = useState<
     Record<string, { url: string; message: string }>
   >({})
+  const [teamInviteActivationMeta, setTeamInviteActivationMeta] = useState<
+    Record<string, { url: string; message: string }>
+  >({})
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null)
   const [newMember, setNewMember] = useState({
     fullName: '',
     email: '',
@@ -257,6 +261,49 @@ export function PeopleManagementClient({
       toast.error(error?.message || 'Gagal mengirim ulang link aktivasi')
     } finally {
       setResendingTechId(null)
+    }
+  }
+
+  const resendTeamInviteActivation = async (invitationId: string) => {
+    setResendingInviteId(invitationId)
+    try {
+      const response = await fetch('/api/people/resend-team-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId, invitationId }),
+      })
+
+      const result = await response.json()
+      if (response.status === 409) {
+        toast.info(result.error || 'Undangan sudah aktif / tidak valid')
+        return
+      }
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal membuat ulang link aktivasi')
+      }
+
+      const invitationUrl = String(result.invitationUrl || '')
+      const warningText = String(result.warning || '')
+      const message = invitationUrl
+        ? warningText
+          ? `Link siap dibagikan. ${warningText}`
+          : 'Link siap dibagikan. Kirim via WhatsApp atau email.'
+        : 'Link belum tersedia'
+
+      setTeamInviteActivationMeta((prev) => ({
+        ...prev,
+        [invitationId]: {
+          url: invitationUrl,
+          message,
+        },
+      }))
+
+      toast.success('Link aktivasi dibuat ulang')
+    } catch (error: any) {
+      console.error('Resend team invite error:', error)
+      toast.error(error?.message || 'Gagal membuat ulang link aktivasi')
+    } finally {
+      setResendingInviteId(null)
     }
   }
 
@@ -1021,10 +1068,56 @@ export function PeopleManagementClient({
                               variant="outline"
                               size="sm"
                               className="w-full"
-                              onClick={() => copyInvitationLink(partner.token)}
+                              onClick={() => resendTeamInviteActivation(partner.id)}
+                              disabled={resendingInviteId === partner.id}
                             >
-                              Copy link aktivasi
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              {resendingInviteId === partner.id
+                                ? 'Mengirim...'
+                                : 'Kirim ulang link aktivasi'}
                             </Button>
+
+                            {teamInviteActivationMeta[partner.id]?.message && (
+                              <p className="mt-3 text-xs text-muted-foreground">
+                                {teamInviteActivationMeta[partner.id]?.message}
+                              </p>
+                            )}
+
+                            {teamInviteActivationMeta[partner.id]?.url && (
+                              <div className="mt-2">
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Link manual (WhatsApp)
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    readOnly
+                                    value={teamInviteActivationMeta[partner.id].url}
+                                    className="text-xs"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    aria-label="Copy activation link"
+                                    onClick={async () => {
+                                      const url = teamInviteActivationMeta[partner.id].url
+                                      try {
+                                        await navigator.clipboard.writeText(url)
+                                        toast.success('Link aktivasi disalin')
+                                      } catch {
+                                        try {
+                                          window.prompt('Copy link aktivasi ini:', url)
+                                        } catch {
+                                          // ignore
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </CardContent>
