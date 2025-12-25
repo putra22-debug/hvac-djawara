@@ -168,6 +168,8 @@ export function PeopleManagementClient({
     Record<string, { url: string; message: string }>
   >({})
   const [resendingInviteId, setResendingInviteId] = useState<string | null>(null)
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null)
+  const [removingInviteId, setRemovingInviteId] = useState<string | null>(null)
   const [newMember, setNewMember] = useState({
     fullName: '',
     email: '',
@@ -387,7 +389,8 @@ export function PeopleManagementClient({
         .eq('tenant_id', tenantId)
         // Team invitations cover non-technician roles (including helper/magang).
         .in('role', ['sales_partner', 'marketing', 'business_dev', 'helper', 'magang'])
-        .neq('status', 'cancelled')
+        // Only show pending invitations in the "Invitation" section to avoid duplicates.
+        .eq('status', 'pending')
         .order('created_at', { ascending: false })
       
       console.log('Partner records query result:', { data, error })
@@ -823,9 +826,50 @@ export function PeopleManagementClient({
     }
   }
 
-  // Separate active and passive partners
-  const activePartners = partnerRecords.filter(p => p.status === 'accepted')
-  const passivePartners = partnerRecords.filter(p => p.status === 'pending')
+  const removeMemberFromTenant = async (member: TeamMember) => {
+    if (removingMemberId) return
+    const profile = typeof member.profiles === 'object' ? member.profiles : {}
+    const name = String(profile.full_name || profile.email || 'this member')
+    const ok = window.confirm(`Hapus ${name} dari tenant ini?`) 
+    if (!ok) return
+
+    setRemovingMemberId(member.id)
+    try {
+      const response = await fetch('/api/people/remove-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId, membershipId: member.id, userId: member.user_id }),
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal menghapus member')
+      }
+
+      setTeamMembers((members) => members.filter((m) => m.id !== member.id))
+      await fetchTechnicianRoster()
+      toast.success('Member dihapus dari tenant')
+    } catch (error: any) {
+      console.error('Remove member error:', error)
+      toast.error(error?.message || 'Gagal menghapus member')
+    } finally {
+      setRemovingMemberId(null)
+    }
+  }
+
+  const cancelInvitation = async (invitation: PartnerRecord) => {
+    if (removingInviteId) return
+    const name = String(invitation.full_name || invitation.email || 'undangan')
+    const ok = window.confirm(`Hapus undangan untuk ${name}?`) 
+    if (!ok) return
+
+    setRemovingInviteId(invitation.id)
+    try {
+      await cancelPartner(invitation.id)
+    } finally {
+      setRemovingInviteId(null)
+    }
+  }
 
   const invitationsByRole = partnerRecords.reduce((acc, invitation) => {
     const role = String(invitation.role || 'unknown')
@@ -969,15 +1013,14 @@ export function PeopleManagementClient({
 
       {activeTab === 'people' && (
         <>
-      {/* Partnership Overview */}
+      {/* Pending Invitations */}
       {partnerRecords.length > 0 && (
         <>
           {invitationRoles.map((role) => {
             const roleInvitations = invitationsByRole[role] || []
             if (roleInvitations.length === 0) return null
 
-            const roleActive = roleInvitations.filter((p) => p.status === 'accepted').length
-            const rolePending = roleInvitations.filter((p) => p.status === 'pending').length
+            const rolePending = roleInvitations.length
 
             return (
               <Card key={role}>
@@ -991,7 +1034,7 @@ export function PeopleManagementClient({
                     </span>
                   </CardTitle>
                   <p className="text-sm text-gray-500 mt-1">
-                    {roleActive} Activated • {rolePending} Pending (Not Activated)
+                    {rolePending} Pending (Not Activated)
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -1075,6 +1118,18 @@ export function PeopleManagementClient({
                               {resendingInviteId === partner.id
                                 ? 'Mengirim...'
                                 : 'Kirim ulang link aktivasi'}
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="w-full mt-2"
+                              onClick={() => cancelInvitation(partner)}
+                              disabled={removingInviteId === partner.id}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              {removingInviteId === partner.id ? 'Menghapus...' : 'Hapus undangan'}
                             </Button>
 
                             {teamInviteActivationMeta[partner.id]?.message && (
@@ -1228,9 +1283,10 @@ export function PeopleManagementClient({
                               <Button 
                                 size="sm" 
                                 variant="ghost"
-                                onClick={() => cancelPartner(partner.id)}
+                                onClick={() => cancelInvitation(partner)}
+                                disabled={removingInviteId === partner.id}
                               >
-                                <XCircle className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
 
@@ -1589,17 +1645,31 @@ export function PeopleManagementClient({
                                 <span className="font-semibold">-</span>
                               </div>
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                toggleMemberStatus(member.id, member.is_active)
-                              }}
-                              className="h-8"
-                            >
-                              {member.is_active ? 'Deactivate' : 'Activate'}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toggleMemberStatus(member.id, member.is_active)
+                                }}
+                                className="h-8"
+                              >
+                                {member.is_active ? 'Deactivate' : 'Activate'}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeMemberFromTenant(member)
+                                }}
+                                className="h-8"
+                                disabled={removingMemberId === member.id}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
 
