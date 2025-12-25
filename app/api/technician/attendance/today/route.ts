@@ -22,6 +22,32 @@ function getJakartaDateISO(now = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+function parseTimeToMinutes(value: string) {
+  const trimmed = String(value || "").trim();
+  const [h, m] = trimmed.split(":");
+  const hour = Number(h || 0);
+  const minute = Number(m || 0);
+  return hour * 60 + minute;
+}
+
+function getJakartaMinutes(isoTs: string) {
+  const dt = new Date(isoTs);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(dt);
+
+  const hour = Number(parts.find((p) => p.type === "hour")?.value || 0);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value || 0);
+  return hour * 60 + minute;
+}
+
+function round2(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 export async function POST() {
   try {
     const supabase = await createSupabaseServerClient();
@@ -62,6 +88,15 @@ export async function POST() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const { data: config } = await admin
+      .from("working_hours_config")
+      .select("work_start_time, work_end_time")
+      .eq("tenant_id", tech.tenant_id)
+      .maybeSingle();
+
+    const startMinutes = parseTimeToMinutes(String(config?.work_start_time || "09:00:00"));
+    const endMinutes = parseTimeToMinutes(String(config?.work_end_time || "17:00:00"));
+
     const today = getJakartaDateISO();
 
     const { data: todayRow, error: todayError } = await admin
@@ -92,7 +127,71 @@ export async function POST() {
       return NextResponse.json({ error: recentError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ today, todayRow: todayRow || null, recent: recent || [] });
+    const computeRow = (row: any) => {
+      if (!row) return row;
+
+      const clockIn = row.clock_in_time as string | null;
+      const clockOut = row.clock_out_time as string | null;
+
+      const isLate = clockIn ? getJakartaMinutes(clockIn) > startMinutes : false;
+      const isEarlyLeave = clockOut ? getJakartaMinutes(clockOut) < endMinutes : false;
+
+      let totalHours: number | null = null;
+      if (clockIn && clockOut) {
+        totalHours = round2((Date.parse(clockOut) - Date.parse(clockIn)) / 3600000);
+      }
+
+      return {
+        ...row,
+        is_late: Boolean(isLate),
+        is_early_leave: Boolean(isEarlyLeave),
+        total_work_hours: typeof totalHours === "number" && Number.isFinite(totalHours) ? totalHours : row.total_work_hours,
+      };
+    };
+
+    const normalizedTodayRow = computeRow(todayRow || null);
+    const normalizedRecent = (recent || []).map(computeRow);
+
+    // Best-effort auto-heal: if existing stored values were computed using UTC time-of-day,
+    // update today's record so subsequent reads (and other pages) match.
+    if (
+      normalizedTodayRow?.id &&
+      normalizedTodayRow?.clock_in_time &&
+      normalizedTodayRow?.clock_out_time
+    ) {
+      const storedHours =
+        typeof todayRow?.total_work_hours === "number" && Number.isFinite(todayRow.total_work_hours)
+          ? Number(todayRow.total_work_hours)
+          : null;
+      const computedHours =
+        typeof normalizedTodayRow.total_work_hours === "number" && Number.isFinite(normalizedTodayRow.total_work_hours)
+          ? Number(normalizedTodayRow.total_work_hours)
+          : null;
+
+      const hoursMismatch =
+        typeof storedHours === "number" && typeof computedHours === "number"
+          ? Math.abs(storedHours - computedHours) > 0.01
+          : storedHours !== computedHours;
+
+      const flagsMismatch =
+        Boolean(todayRow?.is_late) !== Boolean(normalizedTodayRow.is_late) ||
+        Boolean(todayRow?.is_early_leave) !== Boolean(normalizedTodayRow.is_early_leave);
+
+      if (hoursMismatch || flagsMismatch) {
+        await admin
+          .from("daily_attendance")
+          .update({
+            work_start_time: normalizedTodayRow.clock_in_time,
+            work_end_time: normalizedTodayRow.clock_out_time,
+            total_work_hours: computedHours,
+            is_late: Boolean(normalizedTodayRow.is_late),
+            is_early_leave: Boolean(normalizedTodayRow.is_early_leave),
+          })
+          .eq("id", normalizedTodayRow.id);
+      }
+    }
+
+    return NextResponse.json({ today, todayRow: normalizedTodayRow || null, recent: normalizedRecent });
   } catch (error: any) {
     console.error("Error in technician attendance today API:", error);
     return NextResponse.json(

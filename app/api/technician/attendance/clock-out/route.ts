@@ -6,6 +6,32 @@ type Body = {
   notes?: string | null;
 };
 
+function parseTimeToMinutes(value: string) {
+  const trimmed = String(value || "").trim();
+  const [h, m] = trimmed.split(":");
+  const hour = Number(h || 0);
+  const minute = Number(m || 0);
+  return hour * 60 + minute;
+}
+
+function getJakartaMinutes(isoTs: string) {
+  const dt = new Date(isoTs);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(dt);
+
+  const hour = Number(parts.find((p) => p.type === "hour")?.value || 0);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value || 0);
+  return hour * 60 + minute;
+}
+
+function round2(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 function getJakartaDateISO(now = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Jakarta",
@@ -64,6 +90,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const { data: config } = await admin
+      .from("working_hours_config")
+      .select("work_start_time, work_end_time")
+      .eq("tenant_id", tech.tenant_id)
+      .maybeSingle();
+
+    const startMinutes = parseTimeToMinutes(String(config?.work_start_time || "09:00:00"));
+    const endMinutes = parseTimeToMinutes(String(config?.work_end_time || "17:00:00"));
+
     const today = getJakartaDateISO();
     const now = new Date().toISOString();
 
@@ -93,10 +128,20 @@ export async function POST(request: Request) {
       );
     }
 
+    const isLate = getJakartaMinutes(existing.clock_in_time) > startMinutes;
+    const isEarlyLeave = getJakartaMinutes(now) < endMinutes;
+    const totalHours = round2((Date.parse(now) - Date.parse(existing.clock_in_time)) / 3600000);
+
     const { data: updated, error: updateError } = await admin
       .from("daily_attendance")
       .update({
         clock_out_time: now,
+        work_start_time: existing.clock_in_time,
+        work_end_time: now,
+        total_work_hours: totalHours,
+        is_late: isLate,
+        is_early_leave: isEarlyLeave,
+        is_auto_checkout: false,
         notes: typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null,
       })
       .eq("id", existing.id)
