@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,7 +23,6 @@ type InvitationRow = {
 
 export default function TeamInvitePage({ params }: { params: { token: string } }) {
   const router = useRouter()
-  const supabase = createClient()
 
   const token = useMemo(() => String(params?.token || '').trim(), [params?.token])
 
@@ -53,16 +51,23 @@ export default function TeamInvitePage({ params }: { params: { token: string } }
           return
         }
 
-        const { data, error: fetchError } = await supabase
-          .from('team_invitations')
-          .select('id, tenant_id, email, full_name, phone, role, token, expires_at, status, user_id')
-          .eq('token', token)
-          .maybeSingle()
+        const res = await fetch('/api/people/team-invite-meta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        })
 
-        if (fetchError) throw fetchError
+        const json = await res.json()
+        if (!res.ok) {
+          throw new Error(json?.error || 'Gagal memuat undangan')
+        }
 
         if (!cancelled) {
-          setInvitation((data as InvitationRow) || null)
+          setInvitation((json?.invitation as InvitationRow) || null)
+          // If invalid, show server reason for better debugging
+          if (json?.isValid === false && json?.reason) {
+            setError(String(json.reason))
+          }
         }
       } catch (err: any) {
         console.error('Fetch invitation error:', err)
@@ -77,7 +82,7 @@ export default function TeamInvitePage({ params }: { params: { token: string } }
     return () => {
       cancelled = true
     }
-  }, [supabase, token])
+  }, [token])
 
   const isValid = useMemo(() => {
     if (!invitation) return false
@@ -163,7 +168,7 @@ export default function TeamInvitePage({ params }: { params: { token: string } }
             </div>
             <CardTitle className="text-2xl font-bold text-gray-900">Undangan Tidak Valid</CardTitle>
             <CardDescription>
-              Link undangan tidak valid, sudah digunakan, atau sudah expired.
+              {error || 'Link undangan tidak valid, sudah digunakan, atau sudah expired.'}
             </CardDescription>
           </CardHeader>
           <CardContent>

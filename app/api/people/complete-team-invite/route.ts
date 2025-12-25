@@ -5,6 +5,17 @@ function normalizeEmail(email: string) {
   return String(email || '').trim().toLowerCase()
 }
 
+function shouldProvisionTechnicianPortal(role: string) {
+  return ['technician', 'helper', 'magang', 'supervisor', 'team_lead'].includes(String(role || ''))
+}
+
+function mapToTechniciansRole(role: string) {
+  const r = String(role || '')
+  // technicians.role constraint only allows these values.
+  if (r === 'supervisor' || r === 'team_lead') return r
+  return 'technician'
+}
+
 async function findAuthUserIdByEmail(
   adminClient: any,
   email: string
@@ -195,6 +206,64 @@ export async function POST(request: NextRequest) {
 
       if (insertRoleError) {
         console.error('Insert user_tenant_roles error:', insertRoleError)
+      }
+    }
+
+    // Provision technician-portal identity (needed by /technician/login & dashboard)
+    // Keep technicians.role within table constraint; real role remains in user_tenant_roles.
+    if (shouldProvisionTechnicianPortal(role)) {
+      try {
+        const fullName = String(invitation.full_name || email.split('@')[0] || 'Technician').slice(0, 100)
+        const phone = invitation.phone || null
+
+        const { data: existingTech, error: existingTechError } = await adminClient
+          .from('technicians')
+          .select('id, tenant_id, user_id')
+          .eq('email', email)
+          .maybeSingle()
+
+        if (existingTechError) {
+          console.error('Check technicians by email error:', existingTechError)
+        } else if (existingTech && existingTech.tenant_id !== invitation.tenant_id) {
+          console.error('Technician email already used in another tenant; skip provisioning')
+        } else if (existingTech?.id) {
+          const patch: any = {
+            updated_at: nowIso,
+          }
+          if (!existingTech.user_id) patch.user_id = userId
+
+          // Keep identity reasonably fresh
+          patch.full_name = fullName
+          patch.phone = phone
+
+          const { error: updateTechError } = await adminClient
+            .from('technicians')
+            .update(patch)
+            .eq('id', existingTech.id)
+
+          if (updateTechError) {
+            console.error('Update technicians row error:', updateTechError)
+          }
+        } else {
+          const { error: insertTechError } = await adminClient.from('technicians').insert({
+            tenant_id: invitation.tenant_id,
+            user_id: userId,
+            full_name: fullName,
+            email,
+            phone,
+            role: mapToTechniciansRole(role),
+            status: 'active',
+            availability_status: 'available',
+            is_verified: true,
+            last_login_at: nowIso,
+          })
+
+          if (insertTechError) {
+            console.error('Insert technicians row error:', insertTechError)
+          }
+        }
+      } catch (e) {
+        console.error('Provision technicians row exception:', e)
       }
     }
 
