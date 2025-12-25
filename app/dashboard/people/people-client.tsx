@@ -923,12 +923,95 @@ export function PeopleManagementClient({
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {partnerRecords.map((partner) => {
+                const isSupportRole = ['helper', 'magang'].includes(String(partner.role || ''))
                 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://hvac-djawara.vercel.app'
                 const invitationUrl = `${baseUrl}/team/invite/${partner.token}`
                 const expiryDate = new Date(partner.expires_at)
                 const isExpired = expiryDate < new Date()
                 const isActivated = partner.status === 'accepted'
+                const initials = String(partner.full_name || partner.email || 'U').charAt(0).toUpperCase()
                 
+                if (isSupportRole) {
+                  // Helper/Magang: use technician-like cardbox style (simple, compact)
+                  return (
+                    <Card key={partner.id} className="cursor-default">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4 gap-3">
+                          <div className="relative h-20 w-20 rounded-xl overflow-hidden border border-border bg-gradient-to-br from-blue-400 to-blue-600 shrink-0">
+                            <div className="h-full w-full flex items-center justify-center text-white font-bold text-2xl">
+                              {initials}
+                            </div>
+                            <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-border" />
+                          </div>
+                          {isActivated ? (
+                            <Badge className="bg-green-500 text-white">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Activated
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-orange-500 text-white">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              Pending Activation
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="mb-4">
+                          <h3 className="font-bold text-lg text-gray-900 mb-1">{partner.full_name}</h3>
+                          <Badge variant="outline" className="text-xs">
+                            {getRoleDisplayName(partner.role)}
+                          </Badge>
+                        </div>
+
+                        <div className="space-y-2 text-sm text-gray-600">
+                          {partner.email && (
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Mail className="w-4 h-4 text-gray-400 shrink-0" />
+                              <span className="truncate">{partner.email}</span>
+                            </div>
+                          )}
+                          {partner.phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+                              <span>{partner.phone}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <Calendar className="w-4 h-4 shrink-0" />
+                            Expires {expiryDate.toLocaleDateString()}
+                            {isExpired && (
+                              <Badge variant="secondary" className="ml-2 text-xs bg-red-100 text-red-800">
+                                Expired
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {!isActivated && (
+                          <div className="mt-4">
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => copyInvitationLink(partner.token)}
+                              >
+                                Copy Link
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => cancelPartner(partner.id)}>
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <div className="mt-2 text-xs text-gray-400 break-all bg-white rounded p-2 border">
+                              {invitationUrl}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                }
+
                 return (
                   <Card 
                     key={partner.id} 
@@ -1314,7 +1397,7 @@ export function PeopleManagementClient({
                     }}
                   >
                     <CardContent className="p-6">
-                      <div className="flex flex-col lg:flex-row gap-5">
+                      <div className="flex flex-col xl:flex-row gap-5">
                         {/* Left: Info */}
                         <div className="flex-1 min-w-0">
                           {/* Avatar and Status */}
@@ -1405,8 +1488,8 @@ export function PeopleManagementClient({
                         </div>
 
                         {/* Right: Big Photo Frame (area besar) */}
-                        <div className="lg:w-48">
-                          <div className="relative h-48 w-full rounded-xl overflow-hidden border border-border bg-muted">
+                        <div className="xl:w-48">
+                          <div className="relative h-40 xl:h-48 w-full rounded-xl overflow-hidden border border-border bg-muted">
                             {avatarUrl ? (
                               <Image
                                 src={avatarUrl}
