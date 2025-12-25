@@ -444,7 +444,7 @@ export default function TechnicianDashboard() {
                         src={technician.avatar_url}
                         alt={technician.full_name}
                         fill
-                        className="object-cover"
+                        className="object-contain"
                         sizes="(max-width: 1024px) 100vw, 224px"
                       />
                     ) : (

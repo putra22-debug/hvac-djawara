@@ -1717,7 +1717,7 @@ export function PeopleManagementClient({
                                 src={avatarUrl}
                                 alt={fullName}
                                 fill
-                                className="object-cover"
+                                className="object-contain"
                                 sizes="192px"
                               />
                             ) : (
@@ -1893,7 +1893,7 @@ export function PeopleManagementClient({
                           alt="Profile photo"
                           width={80}
                           height={80}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                       ) : (
                         (typeof selectedMember.profiles === 'object' ? selectedMember.profiles.full_name : 'U').charAt(0).toUpperCase()
