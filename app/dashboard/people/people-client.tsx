@@ -780,6 +780,20 @@ export function PeopleManagementClient({
   const activePartners = partnerRecords.filter(p => p.status === 'accepted')
   const passivePartners = partnerRecords.filter(p => p.status === 'pending')
 
+  const invitationsByRole = partnerRecords.reduce((acc, invitation) => {
+    const role = String(invitation.role || 'unknown')
+    if (!acc[role]) acc[role] = []
+    acc[role].push(invitation)
+    return acc
+  }, {} as Record<string, PartnerRecord[]>)
+
+  const getRoleSortOrder = (role: string) => {
+    const info = roleHierarchy.find((r) => r.role_name === role)
+    return typeof info?.sort_order === 'number' ? info.sort_order : 9999
+  }
+
+  const invitationRoles = Object.keys(invitationsByRole).sort((a, b) => getRoleSortOrder(a) - getRoleSortOrder(b))
+
   const teamMemberUserIds = new Set(teamMembers.map(m => m.user_id))
   const technicianCards = technicianRoster.filter(t => !t.user_id || !teamMemberUserIds.has(t.user_id))
 
@@ -910,19 +924,32 @@ export function PeopleManagementClient({
         <>
       {/* Partnership Overview */}
       {partnerRecords.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Team Invitations ({partnerRecords.length})
-            </CardTitle>
-            <p className="text-sm text-gray-500 mt-1">
-              {activePartners.length} Activated • {passivePartners.length} Pending (Not Activated)
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {partnerRecords.map((partner) => {
+        <>
+          {invitationRoles.map((role) => {
+            const roleInvitations = invitationsByRole[role] || []
+            if (roleInvitations.length === 0) return null
+
+            const roleActive = roleInvitations.filter((p) => p.status === 'accepted').length
+            const rolePending = roleInvitations.filter((p) => p.status === 'pending').length
+
+            return (
+              <Card key={role}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Badge className={getCategoryColor(getRoleCategory(role))}>
+                      {getRoleDisplayName(role)}
+                    </Badge>
+                    <span className="text-sm font-normal text-gray-500">
+                      ({roleInvitations.length} {roleInvitations.length === 1 ? 'person' : 'people'})
+                    </span>
+                  </CardTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {roleActive} Activated • {rolePending} Pending (Not Activated)
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {roleInvitations.map((partner) => {
                 const isSupportRole = ['helper', 'magang'].includes(String(partner.role || ''))
                 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://hvac-djawara.vercel.app'
                 const invitationUrl = `${baseUrl}/team/invite/${partner.token}`
@@ -1124,10 +1151,13 @@ export function PeopleManagementClient({
                     </CardContent>
                   </Card>
                 )
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </>
       )}
 
       {/* Technician Cards (include not-yet-verified technicians) */}
@@ -1143,7 +1173,7 @@ export function PeopleManagementClient({
             </p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {technicianCards.map((t) => {
                 // Consider activated when either linked to auth user OR marked verified.
                 // Some records may have only one of these fields set, so use OR.
@@ -1369,7 +1399,7 @@ export function PeopleManagementClient({
           </CardHeader>
           <CardContent>
             {/* Card Grid Layout - Like Clients */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {members.map((member) => {
                 const profile = typeof member.profiles === 'object' ? member.profiles : {}
                 const fullName = profile.full_name || 'Unknown'
