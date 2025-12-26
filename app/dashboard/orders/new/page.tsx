@@ -30,6 +30,8 @@ interface Client {
 interface Technician {
   id: string
   full_name: string
+  user_id?: string
+  role?: string
 }
 
 interface SalesPerson {
@@ -60,12 +62,15 @@ export default function NewOrderPage() {
   const [loading, setLoading] = useState(false)
   const [dataLoading, setDataLoading] = useState(true)
   const [clients, setClients] = useState<Client[]>([])
-  const [technicians, setTechnicians] = useState<Technician[]>([])
+  const [availableTechnicians, setAvailableTechnicians] = useState<Technician[]>([])
+  const [availableHelpers, setAvailableHelpers] = useState<Technician[]>([])
   const [salesTeam, setSalesTeam] = useState<SalesPerson[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [supportsUnitFields, setSupportsUnitFields] = useState(false)
   const [showNewClientForm, setShowNewClientForm] = useState(false)
   const [creatingClient, setCreatingClient] = useState(false)
-  const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([])
+  const [selectedTechnicianIds, setSelectedTechnicianIds] = useState<string[]>([])
+  const [selectedHelperIds, setSelectedHelperIds] = useState<string[]>([])
   
   const [formData, setFormData] = useState({
     client_id: '',
@@ -73,6 +78,8 @@ export default function NewOrderPage() {
     order_type: '',
     service_title: '',
     service_description: '',
+    unit_count: '',
+    unit_category: '',
     location_address: '',
     start_date: '',
     start_time: '',
@@ -134,6 +141,20 @@ export default function NewOrderPage() {
         throw new Error('No active tenant')
       }
 
+      // Detect whether unit fields exist on service_orders (avoid breaking if DB migration not applied)
+      const { error: unitFieldProbeError } = await supabase
+        .from('service_orders')
+        .select('id, unit_count, unit_category')
+        .eq('tenant_id', profile.active_tenant_id)
+        .limit(1)
+
+      if (unitFieldProbeError) {
+        console.warn('ℹ️ unit_count/unit_category not available yet:', unitFieldProbeError.message)
+        setSupportsUnitFields(false)
+      } else {
+        setSupportsUnitFields(true)
+      }
+
       // Load clients
       const { data: clientsData, error: clientsError } = await supabase
         .from('clients')
@@ -148,49 +169,54 @@ export default function NewOrderPage() {
         setClients(clientsData || [])
       }
 
-      // Load technicians - try from technicians table first (Team Management uses this)
+      // Load technicians/helpers from technicians table + classify by user_tenant_roles
       const { data: techData, error: techError } = await supabase
         .from('technicians')
-        .select('id, full_name, status, phone, email')
+        .select('id, full_name, user_id, status')
         .eq('tenant_id', profile.active_tenant_id)
         .in('status', ['verified', 'active'])
         .order('full_name')
 
       if (techError) {
         console.error('❌ Technicians table error:', techError)
-        
-        // Fallback: try user_tenant_roles
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_tenant_roles')
-          .select(`
-            user_id,
-            role,
-            profiles!inner(
-              id,
-              full_name
-            )
-          `)
-          .eq('tenant_id', profile.active_tenant_id)
-          .in('role', ['technician', 'tech_head'])
-          .eq('is_active', true)
-        
-        if (!roleError && roleData && roleData.length > 0) {
-          const mappedTechs = roleData.map((t: any) => ({
-            id: t.profiles.id,
-            full_name: t.profiles.full_name
-          }))
-          console.log('✅ Loaded technicians from user_tenant_roles:', mappedTechs)
-          setTechnicians(mappedTechs)
-        } else {
-          console.error('❌ Both queries failed')
-          setTechnicians([])
-        }
+        setAvailableTechnicians([])
+        setAvailableHelpers([])
       } else if (techData && techData.length > 0) {
-        console.log('✅ Loaded technicians from technicians table:', techData)
-        setTechnicians(techData)
+        const userIds = techData.map((t: any) => t.user_id).filter(Boolean)
+
+        const { data: rolesData, error: rolesError } = await supabase
+          .from('user_tenant_roles')
+          .select('user_id, role')
+          .eq('tenant_id', profile.active_tenant_id)
+          .in('user_id', userIds)
+          .eq('is_active', true)
+
+        if (rolesError) {
+          console.error('❌ user_tenant_roles error:', rolesError)
+        }
+
+        const roleByUserId = new Map<string, string>()
+        for (const row of rolesData || []) {
+          roleByUserId.set((row as any).user_id, (row as any).role)
+        }
+
+        const withRoles: Technician[] = (techData as any[]).map((t) => ({
+          id: t.id,
+          full_name: t.full_name,
+          user_id: t.user_id,
+          role: t.user_id ? roleByUserId.get(t.user_id) : undefined,
+        }))
+
+        const helpers = withRoles.filter((t) => (t.role || '').toLowerCase() === 'helper' || (t.role || '').toLowerCase() === 'magang')
+        const techniciansOnly = withRoles.filter((t) => !helpers.some((h) => h.id === t.id))
+
+        console.log('✅ Loaded team members:', { technicians: techniciansOnly.length, helpers: helpers.length })
+        setAvailableTechnicians(techniciansOnly)
+        setAvailableHelpers(helpers)
       } else {
         console.log('⚠️ No verified technicians found in database')
-        setTechnicians([])
+        setAvailableTechnicians([])
+        setAvailableHelpers([])
       }
 
       // Load sales/marketing team - COMMENTED OUT (Coming Soon)
@@ -292,6 +318,11 @@ export default function NewOrderPage() {
       return
     }
 
+    if (selectedTechnicianIds.length < 1) {
+      toast.error('Minimal pilih 1 teknisi (helper optional)')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -318,13 +349,26 @@ export default function NewOrderPage() {
       } else {
         // New work - pekerjaan yang akan dikerjakan
         if (formData.start_date) {
-          orderStatus = selectedTechnicians.length > 0 ? 'scheduled' : 'pending'
+          orderStatus = selectedTechnicianIds.length > 0 ? 'scheduled' : 'pending'
         } else {
           orderStatus = 'listing'
         }
       }
 
       // Create order
+      const notesWithUnitFallback = (() => {
+        const base = formData.notes?.trim() || ''
+        if (supportsUnitFields) return base || null
+
+        const unitCountText = formData.unit_count ? `Jumlah Unit: ${formData.unit_count}` : ''
+        const unitCategoryText = formData.unit_category ? `Kategori Unit: ${formData.unit_category}` : ''
+        const unitInfo = [unitCountText, unitCategoryText].filter(Boolean).join(' • ')
+
+        if (!unitInfo) return base || null
+        if (!base) return unitInfo
+        return `${base}\n\n${unitInfo}`
+      })()
+
       const { data: newOrder, error: orderError } = await supabase
         .from('service_orders')
         .insert({
@@ -333,6 +377,12 @@ export default function NewOrderPage() {
           order_type: formData.order_type,
           service_title: formData.service_title,
           service_description: formData.service_description || null,
+          ...(supportsUnitFields
+            ? {
+                unit_count: formData.unit_count ? parseInt(formData.unit_count) : null,
+                unit_category: formData.unit_category || null,
+              }
+            : {}),
           location_address: formData.location_address,
           scheduled_date: formData.start_date || null,
           scheduled_time: formData.start_time || null,
@@ -342,7 +392,7 @@ export default function NewOrderPage() {
           // sales_referral_id: formData.sales_referral_id || null,
           // order_source: formData.order_source,
           // approval_documents: approvalDocuments,
-          notes: formData.notes || null,
+          notes: notesWithUnitFallback,
           status: orderStatus,
           created_by: user.id,
         })
@@ -351,14 +401,24 @@ export default function NewOrderPage() {
 
       if (orderError) throw orderError
 
-      // If technicians assigned, create work order assignments for all
-      if (selectedTechnicians.length > 0 && newOrder.id) {
-        const assignments = selectedTechnicians.map(techId => ({
-          service_order_id: newOrder.id,
-          technician_id: techId,
-          assigned_by: user.id,
-          status: 'assigned',
-        }))
+      // Create work order assignments
+      if ((selectedTechnicianIds.length > 0 || selectedHelperIds.length > 0) && newOrder.id) {
+        const assignments = [
+          ...selectedTechnicianIds.map((techId) => ({
+            service_order_id: newOrder.id,
+            technician_id: techId,
+            assigned_by: user.id,
+            status: 'assigned',
+            role_in_order: 'primary',
+          })),
+          ...selectedHelperIds.map((techId) => ({
+            service_order_id: newOrder.id,
+            technician_id: techId,
+            assigned_by: user.id,
+            status: 'assigned',
+            role_in_order: 'assistant',
+          })),
+        ]
 
         const { error: assignError } = await supabase
           .from('work_order_assignments')
@@ -368,7 +428,7 @@ export default function NewOrderPage() {
           console.error('Error assigning technicians:', assignError)
           toast.error('Order created but failed to assign some technicians')
         } else {
-          toast.success(`${selectedTechnicians.length} technician(s) assigned successfully!`)
+          toast.success(`Assigned: ${selectedTechnicianIds.length} technician(s), ${selectedHelperIds.length} helper(s)`) 
         }
       }
 
@@ -696,6 +756,46 @@ export default function NewOrderPage() {
                 />
               </div>
 
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="unit_count">Jumlah Unit (Optional)</Label>
+                  <Input
+                    id="unit_count"
+                    type="number"
+                    min={1}
+                    placeholder="e.g., 10"
+                    value={formData.unit_count}
+                    onChange={(e) => setFormData({ ...formData, unit_count: e.target.value })}
+                  />
+                  {!supportsUnitFields && (formData.unit_count || formData.unit_category) && (
+                    <p className="text-xs text-muted-foreground">
+                      Catatan: kolom database belum aktif; akan disimpan ke Notes.
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unit_category">Kategori Unit (Optional)</Label>
+                  <Select
+                    value={formData.unit_category || undefined}
+                    onValueChange={(value) => setFormData({ ...formData, unit_category: value })}
+                  >
+                    <SelectTrigger id="unit_category">
+                      <SelectValue placeholder="Pilih kategori unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="split">Split</SelectItem>
+                      <SelectItem value="cassette">Cassette</SelectItem>
+                      <SelectItem value="standing_floor">Standing Floor</SelectItem>
+                      <SelectItem value="split_duct">Split Duct</SelectItem>
+                      <SelectItem value="vrf_vrv">VRF / VRV</SelectItem>
+                      <SelectItem value="cold_storage">Cold Storage</SelectItem>
+                      <SelectItem value="refrigerator">Refrigerator</SelectItem>
+                      <SelectItem value="other">Lain-lain</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="priority">Priority</Label>
                 <Select 
@@ -821,14 +921,21 @@ export default function NewOrderPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="start_time">Start Time (24H)</Label>
-                  <Input
-                    id="start_time"
-                    type="time"
-                    value={formData.start_time}
-                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                  />
+                  <Select
+                    value={formData.start_time || undefined}
+                    onValueChange={(value) => setFormData({ ...formData, start_time: value })}
+                  >
+                    <SelectTrigger id="start_time">
+                      <SelectValue placeholder="Select time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_SLOTS.map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs text-muted-foreground">
-                    Format: 00:00 - 23:59
+                    Pilih slot waktu (tanpa input manual)
                   </p>
                 </div>
               </div>
@@ -845,12 +952,19 @@ export default function NewOrderPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="end_time">End Time (24H)</Label>
-                  <Input
-                    id="end_time"
-                    type="time"
-                    value={formData.end_time}
-                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                  />
+                  <Select
+                    value={formData.end_time || undefined}
+                    onValueChange={(value) => setFormData({ ...formData, end_time: value })}
+                  >
+                    <SelectTrigger id="end_time">
+                      <SelectValue placeholder="Select time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_SLOTS.map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs text-muted-foreground">
                     Estimated completion time
                   </p>
@@ -868,45 +982,72 @@ export default function NewOrderPage() {
               )}
 
               <div className="space-y-2">
-                <Label>Assign Technicians (Optional)</Label>
+                <Label>Assign Team <span className="text-red-500">*</span></Label>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Select multiple technicians for this job (e.g., technician + helper)
+                  Minimal 1 teknisi wajib. Helper/magang optional.
                 </p>
-                {technicians.length === 0 ? (
+                {availableTechnicians.length === 0 ? (
                   <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
                     <p className="text-sm text-gray-500">No verified technicians available. Order will be unassigned.</p>
                   </div>
                 ) : (
-                  <div className="space-y-2 p-4 border border-gray-200 rounded-lg bg-white">
-                    {technicians.map((tech) => (
-                      <label 
-                        key={tech.id} 
-                        className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedTechnicians.includes(tech.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedTechnicians([...selectedTechnicians, tech.id])
-                            } else {
-                              setSelectedTechnicians(selectedTechnicians.filter(id => id !== tech.id))
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <span className="text-sm font-medium text-gray-900">
-                          👤 {tech.full_name}
-                        </span>
-                      </label>
-                    ))}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2 p-4 border border-gray-200 rounded-lg bg-white">
+                      <p className="text-sm font-semibold text-gray-900">👷 Technicians</p>
+                      {availableTechnicians.map((tech) => (
+                        <label
+                          key={tech.id}
+                          className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedTechnicianIds.includes(tech.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedTechnicianIds([...selectedTechnicianIds, tech.id])
+                              } else {
+                                setSelectedTechnicianIds(selectedTechnicianIds.filter((id) => id !== tech.id))
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-gray-900">{tech.full_name}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2 p-4 border border-gray-200 rounded-lg bg-white">
+                      <p className="text-sm font-semibold text-gray-900">🧰 Helpers (Optional)</p>
+                      {availableHelpers.length === 0 ? (
+                        <p className="text-sm text-gray-500">No helpers available</p>
+                      ) : (
+                        availableHelpers.map((tech) => (
+                          <label
+                            key={tech.id}
+                            className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedHelperIds.includes(tech.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedHelperIds([...selectedHelperIds, tech.id])
+                                } else {
+                                  setSelectedHelperIds(selectedHelperIds.filter((id) => id !== tech.id))
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-medium text-gray-900">{tech.full_name}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
                   </div>
                 )}
-                {selectedTechnicians.length > 0 && (
-                  <p className="text-xs text-green-600 mt-2">
-                    ✓ {selectedTechnicians.length} technician(s) selected - All will receive notification
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground mt-2">
+                  Selected: {selectedTechnicianIds.length} technician(s), {selectedHelperIds.length} helper(s)
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -946,7 +1087,7 @@ export default function NewOrderPage() {
                     <p className="text-xs text-green-600 mt-2">
                       ✓ Client will see this schedule in their portal<br />
                       ✓ Supports 24-hour format for flexible scheduling<br />
-                      {selectedTechnicians.length > 0 && `✓ ${selectedTechnicians.length} technician(s) will receive notification`}
+                      {(selectedTechnicianIds.length > 0 || selectedHelperIds.length > 0) && `✓ ${selectedTechnicianIds.length + selectedHelperIds.length} team member(s) will receive notification`}
                     </p>
                   </div>
                 </div>

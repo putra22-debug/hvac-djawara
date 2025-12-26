@@ -41,6 +41,8 @@ export interface ServiceOrder {
   assigned_technician_names?: string
   assigned_technician_ids?: string
   technician_count?: number
+  assigned_helper_names?: string
+  helper_count?: number
   client_name?: string
   client_phone?: string
   client_email?: string
@@ -158,6 +160,7 @@ export function useOrders(options: UseOrdersOptions = {}) {
           .select(`
             service_order_id,
             technician_id,
+            role_in_order,
             technicians (
               id,
               full_name
@@ -174,22 +177,37 @@ export function useOrders(options: UseOrdersOptions = {}) {
         // Aggregate technician data per order
         const enrichedOrders = ordersData.map(order => {
           const orderAssignments = assignments?.filter(a => a.service_order_id === order.id) || []
-          const techNames = orderAssignments
-            .map(a => {
-              // Handle nested technicians object
-              const tech = a.technicians
-              if (Array.isArray(tech)) {
-                return tech[0]?.full_name
-              }
-              return tech?.full_name
-            })
+
+          const nameForAssignment = (a: any) => {
+            const tech = a.technicians
+            if (Array.isArray(tech)) return tech[0]?.full_name
+            return tech?.full_name
+          }
+
+          const primaries = orderAssignments.filter((a: any) => (a.role_in_order || 'primary') === 'primary')
+          const assistants = orderAssignments.filter((a: any) => (a.role_in_order || '') === 'assistant')
+
+          // Backward compatibility: if role_in_order is missing for all, treat as all primary
+          const hasAnyRole = orderAssignments.some((a: any) => a.role_in_order)
+          const effectivePrimaries = hasAnyRole ? primaries : orderAssignments
+          const effectiveAssistants = hasAnyRole ? assistants : []
+
+          const techNames = effectivePrimaries
+            .map(nameForAssignment)
+            .filter(Boolean)
+            .join(', ')
+
+          const helperNames = effectiveAssistants
+            .map(nameForAssignment)
             .filter(Boolean)
             .join(', ')
           
           return {
             ...order,
             assigned_technician_names: techNames || undefined,
-            technician_count: orderAssignments.length || 0,
+            technician_count: effectivePrimaries.length || 0,
+            assigned_helper_names: helperNames || undefined,
+            helper_count: effectiveAssistants.length || 0,
             client_name: order.client?.name,
             client_phone: order.client?.phone,
             service_location: order.location_address,
@@ -260,6 +278,7 @@ export function useOrder(orderId: string | null) {
       const { data: assignments } = await supabase
         .from('work_order_assignments')
         .select(`
+          role_in_order,
           technician:technicians!technician_id(id, full_name)
         `)
         .eq('service_order_id', orderId)
@@ -267,16 +286,32 @@ export function useOrder(orderId: string | null) {
       // Aggregate technician names
       let technicianNames = 'Unassigned'
       let technicianCount = 0
+      let helperNames: string | undefined = undefined
+      let helperCount = 0
       let firstTechnician = null
 
       if (assignments && assignments.length > 0) {
-        const techNames = assignments
+        const hasAnyRole = assignments.some((a: any) => a.role_in_order)
+        const primaries = hasAnyRole
+          ? assignments.filter((a: any) => (a.role_in_order || 'primary') === 'primary')
+          : assignments
+        const assistants = hasAnyRole
+          ? assignments.filter((a: any) => (a.role_in_order || '') === 'assistant')
+          : []
+
+        const techNames = primaries
           .map((a: any) => a.technician?.full_name)
           .filter(Boolean)
-        
-        technicianNames = techNames.join(', ')
+
+        const assistantNames = assistants
+          .map((a: any) => a.technician?.full_name)
+          .filter(Boolean)
+
+        technicianNames = techNames.length > 0 ? techNames.join(', ') : 'Unassigned'
         technicianCount = techNames.length
-        firstTechnician = assignments[0]?.technician || null
+        helperNames = assistantNames.length > 0 ? assistantNames.join(', ') : undefined
+        helperCount = assistantNames.length
+        firstTechnician = primaries[0]?.technician || assignments[0]?.technician || null
       }
 
       // Merge data
@@ -284,6 +319,8 @@ export function useOrder(orderId: string | null) {
         ...orderData,
         assigned_technician_names: technicianNames,
         technician_count: technicianCount,
+        assigned_helper_names: helperNames,
+        helper_count: helperCount,
         technician: firstTechnician, // For backward compatibility
       }
 

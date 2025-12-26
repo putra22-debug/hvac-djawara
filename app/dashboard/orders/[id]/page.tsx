@@ -7,13 +7,6 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useOrder, useUpdateOrder, useTechnicians, OrderStatus } from '@/hooks/use-orders'
@@ -37,10 +30,8 @@ function OrderDetailContent() {
   
   const { order, loading, error, refetch } = useOrder(orderId)
   const { updateOrder } = useUpdateOrder()
-  const { technicians } = useTechnicians()
   
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('')
-  const [selectedTechnician, setSelectedTechnician] = useState('')
   const [notes, setNotes] = useState('')
 
   const formatDate = (dateString?: string) => {
@@ -77,56 +68,6 @@ function OrderDetailContent() {
     }
   }
 
-  const handleAssignTechnician = async () => {
-    if (!selectedTechnician || !order) return
-
-    try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        toast.error('Not authenticated')
-        return
-      }
-
-      // Check if technician already assigned
-      const { data: existing } = await supabase
-        .from('work_order_assignments')
-        .select('id')
-        .eq('service_order_id', order.id)
-        .eq('technician_id', selectedTechnician)
-        .single()
-
-      if (existing) {
-        toast.error('Teknisi sudah di-assign ke order ini')
-        return
-      }
-
-      // Insert new assignment
-      const { error: assignError } = await supabase
-        .from('work_order_assignments')
-        .insert({
-          service_order_id: order.id,
-          technician_id: selectedTechnician,
-          assigned_by: user.id,
-          status: 'assigned',
-        })
-
-      if (assignError) throw assignError
-
-      // Update order status if still pending
-      if (order.status === 'pending' || order.status === 'listing') {
-        await updateOrder(order.id, { status: 'scheduled' })
-      }
-
-      toast.success('Technician assigned successfully')
-      setSelectedTechnician('')
-      refetch()
-    } catch (err) {
-      console.error('Error assigning technician:', err)
-      toast.error('Failed to assign technician')
-    }
-  }
 
   const handleAddNote = async () => {
     if (!notes.trim() || !order) return
@@ -361,23 +302,39 @@ function OrderDetailContent() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                Assigned Technician
+                Assigned Team
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {order.assigned_technician_names ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                      {order.assigned_technician_names}
-                      {order.technician_count && order.technician_count > 1 && (
-                        <span className="ml-1">({order.technician_count} technicians)</span>
-                      )}
-                    </Badge>
+              {order.assigned_technician_names || order.assigned_helper_names ? (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-500">Technicians</p>
+                    {order.assigned_technician_names ? (
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                        {order.assigned_technician_names}
+                        {order.technician_count && order.technician_count > 1 && (
+                          <span className="ml-1">({order.technician_count})</span>
+                        )}
+                      </Badge>
+                    ) : (
+                      <p className="text-sm text-amber-800">No technician assigned</p>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500">
-                    👤 Currently assigned to this order
-                  </p>
+
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-500">Helpers</p>
+                    {order.assigned_helper_names ? (
+                      <Badge variant="outline" className="bg-gray-50 text-gray-700">
+                        {order.assigned_helper_names}
+                        {order.helper_count && order.helper_count > 1 && (
+                          <span className="ml-1">({order.helper_count})</span>
+                        )}
+                      </Badge>
+                    ) : (
+                      <p className="text-sm text-gray-500">No helpers assigned</p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
@@ -419,35 +376,6 @@ function OrderDetailContent() {
 
         {/* Sidebar Actions */}
         <div className="space-y-6">
-          {/* Assign Technician */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Assign Technician</CardTitle>
-              <CardDescription>Current: {order.technician?.full_name || 'Unassigned'}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Select value={selectedTechnician} onValueChange={setSelectedTechnician}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select technician" />
-                </SelectTrigger>
-                <SelectContent>
-                  {technicians.map((tech) => (
-                    <SelectItem key={tech.id} value={tech.id}>
-                      {tech.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button 
-                onClick={handleAssignTechnician} 
-                disabled={!selectedTechnician || updating}
-                className="w-full"
-              >
-                Assign
-              </Button>
-            </CardContent>
-          </Card>
-
           {/* Order Status Info */}
           <Card>
             <CardHeader>

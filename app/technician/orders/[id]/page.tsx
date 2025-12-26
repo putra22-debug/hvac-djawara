@@ -57,6 +57,7 @@ export default function WorkOrderDetailPage() {
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [workLog, setWorkLog] = useState<WorkLog | null>(null);
   const [technicianId, setTechnicianId] = useState<string>("");
+  const [isHelper, setIsHelper] = useState(false);
   const [notes, setNotes] = useState("");
   const [photoBefore, setPhotoBefore] = useState<File | null>(null);
   const [photoAfter, setPhotoAfter] = useState<File | null>(null);
@@ -79,6 +80,34 @@ export default function WorkOrderDetailPage() {
       }
 
       console.log("✓ User authenticated:", user.id);
+
+      // Determine if current user is helper/magang (read-only)
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('active_tenant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Profile error:', profileError);
+      }
+
+      if (profileData?.active_tenant_id) {
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_tenant_roles')
+          .select('role')
+          .eq('tenant_id', profileData.active_tenant_id)
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (roleError) {
+          console.error('Role error:', roleError);
+        }
+
+        const role = (roleData as any)?.role as string | undefined;
+        setIsHelper((role || '').toLowerCase() === 'helper' || (role || '').toLowerCase() === 'magang');
+      }
 
       // Get technician ID
       const { data: techData, error: techError } = await supabase
@@ -149,6 +178,10 @@ export default function WorkOrderDetailPage() {
 
   const handleCheckIn = async () => {
     try {
+      if (isHelper) {
+        toast.error('Akun helper hanya bisa melihat (read-only)');
+        return;
+      }
       setUploading(true);
       const location = await getCurrentLocation();
       const supabase = createClient();
@@ -213,6 +246,10 @@ export default function WorkOrderDetailPage() {
 
   const handleCheckOut = async () => {
     try {
+      if (isHelper) {
+        toast.error('Akun helper hanya bisa melihat (read-only)');
+        return;
+      }
       setUploading(true);
       const supabase = createClient();
 
@@ -298,6 +335,21 @@ export default function WorkOrderDetailPage() {
       </header>
 
       <div className="container mx-auto px-4 py-6 space-y-6">
+        {isHelper && (
+          <Card className="bg-amber-50 border-amber-200">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-6 w-6 text-amber-700" />
+                <div>
+                  <h3 className="font-semibold text-amber-900">Mode Helper (Read-only)</h3>
+                  <p className="text-sm text-amber-800">
+                    Helper bisa melihat detail order dan assignment, tapi tidak bisa check-in/out dan tidak bisa mengisi data teknis.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {/* Work Order Info */}
         <Card>
           <CardHeader>
@@ -374,31 +426,49 @@ export default function WorkOrderDetailPage() {
         {isOrderCompleted ? (
           // Technical Data Form for completed orders
           <>
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <FileText className="h-8 w-8 text-blue-600" />
-                  <div>
-                    <h3 className="font-semibold text-blue-900">Lengkapi Data Teknis</h3>
-                    <p className="text-sm text-blue-700">
-                      Order ini sudah selesai. Silakan lengkapi data teknis dan dokumentasi pekerjaan.
-                    </p>
+            {isHelper ? (
+              <Card className="bg-gray-50 border-gray-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-8 w-8 text-gray-600" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Data Teknis</h3>
+                      <p className="text-sm text-gray-700">
+                        Akun helper tidak dapat mengisi laporan teknis.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-8 w-8 text-blue-600" />
+                      <div>
+                        <h3 className="font-semibold text-blue-900">Lengkapi Data Teknis</h3>
+                        <p className="text-sm text-blue-700">
+                          Order ini sudah selesai. Silakan lengkapi data teknis dan dokumentasi pekerjaan.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-            <EnhancedTechnicalDataForm
-              orderId={orderId}
-              technicianId={technicianId}
-              onSuccess={() => {
-                toast.success("Laporan pekerjaan berhasil disimpan!");
-                // Force hard navigation to dashboard with timestamp to bust cache
-                setTimeout(() => {
-                  window.location.href = "/technician/dashboard?refresh=" + Date.now();
-                }, 500);
-              }}
-            />
+                <EnhancedTechnicalDataForm
+                  orderId={orderId}
+                  technicianId={technicianId}
+                  onSuccess={() => {
+                    toast.success("Laporan pekerjaan berhasil disimpan!");
+                    // Force hard navigation to dashboard with timestamp to bust cache
+                    setTimeout(() => {
+                      window.location.href = "/technician/dashboard?refresh=" + Date.now();
+                    }, 500);
+                  }}
+                />
+              </>
+            )}
           </>
         ) : (
           <>
@@ -453,7 +523,7 @@ export default function WorkOrderDetailPage() {
                   className="w-full"
                   size="lg"
                   onClick={handleCheckIn}
-                  disabled={uploading}
+                  disabled={uploading || isHelper}
                 >
                   {uploading ? (
                     <>
@@ -474,7 +544,7 @@ export default function WorkOrderDetailPage() {
                   className="w-full"
                   size="lg"
                   onClick={handleCheckOut}
-                  disabled={uploading || !photoBefore}
+                  disabled={uploading || !photoBefore || isHelper}
                 >
                   {uploading ? (
                     <>
