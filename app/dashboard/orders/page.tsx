@@ -1,6 +1,7 @@
+
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { 
@@ -77,6 +78,7 @@ const priorityConfig = {
 
 export default function OrdersPage() {
   const router = useRouter()
+  const [viewerRole, setViewerRole] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
@@ -87,6 +89,39 @@ export default function OrdersPage() {
     status: statusFilter === 'all' ? undefined : statusFilter,
     search: searchQuery,
   })
+
+  useEffect(() => {
+    const loadViewerRole = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('active_tenant_id')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        const tenantId = (profile as any)?.active_tenant_id ?? null
+        if (!tenantId) return
+
+        const { data: roleRow } = await supabase
+          .from('user_tenant_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true)
+          .maybeSingle()
+
+        setViewerRole((roleRow as any)?.role ?? null)
+      } catch (e) {
+        console.error('Failed to load viewer role:', e)
+      }
+    }
+
+    loadViewerRole()
+  }, [])
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -414,8 +449,12 @@ export default function OrdersPage() {
                 paginatedOrders.map((order) => {
                   const StatusIcon = statusConfig[order.status as keyof typeof statusConfig]?.icon
                   return (
-                    <TableRow key={order.id}>
-                      <TableCell>
+                    <TableRow
+                      key={order.id}
+                      className="cursor-pointer"
+                      onClick={() => router.push(`/dashboard/orders/${order.id}`)}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selectedOrders.has(order.id)}
                           onCheckedChange={() => toggleSelectOrder(order.id)}
@@ -480,7 +519,7 @@ export default function OrdersPage() {
                           <span className="text-sm text-muted-foreground">Unassigned</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
@@ -489,22 +528,32 @@ export default function OrdersPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => router.push(`/dashboard/orders/${order.id}`)}>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/dashboard/orders/${order.id}`)
+                            }}>
                               <Eye className="w-4 h-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => router.push(`/dashboard/orders/${order.id}/edit`)}>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/dashboard/orders/${order.id}/edit`)
+                            }}>
                               <Edit className="w-4 h-4 mr-2" />
                               Edit Order
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <UserPlus className="w-4 h-4 mr-2" />
-                              Assign Technician
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Copy className="w-4 h-4 mr-2" />
-                              Duplicate
-                            </DropdownMenuItem>
+                            {viewerRole !== 'sales_partner' && (
+                              <DropdownMenuItem>
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Assign Technician
+                              </DropdownMenuItem>
+                            )}
+                            {viewerRole !== 'sales_partner' && (
+                              <DropdownMenuItem>
+                                <Copy className="w-4 h-4 mr-2" />
+                                Duplicate
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               className="text-red-600"

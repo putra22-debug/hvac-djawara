@@ -28,6 +28,7 @@ export default function EditOrderPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [dataLoading, setDataLoading] = useState(true)
+  const [viewerRole, setViewerRole] = useState<string | null>(null)
   const [supportsUnitFields, setSupportsUnitFields] = useState(false)
   const [availableTechnicians, setAvailableTechnicians] = useState<Array<{ id: string; full_name: string; role?: string }>>([])
   const [availableHelpers, setAvailableHelpers] = useState<Array<{ id: string; full_name: string; role?: string }>>([])
@@ -84,6 +85,7 @@ export default function EditOrderPage() {
       }
 
       const viewerRole = (roleRow as any)?.role ?? null
+      setViewerRole(viewerRole)
       
       const { data, error } = await supabase
         .from('service_orders')
@@ -170,6 +172,7 @@ export default function EditOrderPage() {
       }
 
       const viewerRole = (roleRow as any)?.role ?? null
+      setViewerRole(viewerRole)
 
       const { data: orderData, error: orderError } = await supabase
         .from('service_orders')
@@ -193,6 +196,13 @@ export default function EditOrderPage() {
           router.replace('/dashboard/orders')
           return
         }
+
+        // Sales partner cannot change assignment; no need to load full roster
+        setAvailableTechnicians([])
+        setAvailableHelpers([])
+        setSelectedTechnicianIds([])
+        setSelectedHelperIds([])
+        return
       }
 
       const { data: techData, error: techError } = await supabase
@@ -266,7 +276,9 @@ export default function EditOrderPage() {
     try {
       setSaving(true)
 
-      if (selectedTechnicianIds.length < 1) {
+      const isSalesPartner = viewerRole === 'sales_partner'
+
+      if (!isSalesPartner && selectedTechnicianIds.length < 1) {
         toast.error('Minimal pilih 1 teknisi (helper optional)')
         return
       }
@@ -284,65 +296,72 @@ export default function EditOrderPage() {
         return `${base}\n\n${unitInfo}`
       })()
 
+      const updatePayload: any = {
+        service_title: formData.service_title,
+        service_description: formData.service_description || null,
+        order_type: formData.order_type,
+        ...(supportsUnitFields
+          ? {
+              unit_count: formData.unit_count ? parseInt(formData.unit_count) : null,
+              unit_category: formData.unit_category || null,
+            }
+          : {}),
+        priority: formData.priority,
+        location_address: formData.location_address,
+        notes: notesWithUnitFallback,
+        updated_at: new Date().toISOString(),
+      }
+
+      if (!isSalesPartner) {
+        updatePayload.status = formData.status
+        updatePayload.scheduled_date = formData.start_date || null
+        updatePayload.scheduled_time = formData.start_time || null
+        updatePayload.estimated_end_date = formData.end_date || null
+        updatePayload.estimated_end_time = formData.end_time || null
+      }
+
       const { error } = await supabase
         .from('service_orders')
-        .update({
-          service_title: formData.service_title,
-          service_description: formData.service_description || null,
-          order_type: formData.order_type,
-          ...(supportsUnitFields
-            ? {
-                unit_count: formData.unit_count ? parseInt(formData.unit_count) : null,
-                unit_category: formData.unit_category || null,
-              }
-            : {}),
-          priority: formData.priority,
-          status: formData.status,
-          location_address: formData.location_address,
-          scheduled_date: formData.start_date || null,
-          scheduled_time: formData.start_time || null,
-          estimated_end_date: formData.end_date || null,
-          estimated_end_time: formData.end_time || null,
-          notes: notesWithUnitFallback,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', orderId)
 
       if (error) throw error
 
-      // Sync assignments: replace existing with current selection
-      const { data: auth } = await supabase.auth.getUser()
-      const assignedBy = auth?.user?.id || null
+      if (!isSalesPartner) {
+        // Sync assignments: replace existing with current selection
+        const { data: auth } = await supabase.auth.getUser()
+        const assignedBy = auth?.user?.id || null
 
-      const { error: deleteError } = await supabase
-        .from('work_order_assignments')
-        .delete()
-        .eq('service_order_id', orderId)
+        const { error: deleteError } = await supabase
+          .from('work_order_assignments')
+          .delete()
+          .eq('service_order_id', orderId)
 
-      if (deleteError) throw deleteError
+        if (deleteError) throw deleteError
 
-      const assignmentsPayload = [
-        ...selectedTechnicianIds.map((techId) => ({
-          service_order_id: orderId,
-          technician_id: techId,
-          assigned_by: assignedBy,
-          status: 'assigned',
-          role_in_order: 'primary',
-        })),
-        ...selectedHelperIds.map((techId) => ({
-          service_order_id: orderId,
-          technician_id: techId,
-          assigned_by: assignedBy,
-          status: 'assigned',
-          role_in_order: 'assistant',
-        })),
-      ]
+        const assignmentsPayload = [
+          ...selectedTechnicianIds.map((techId) => ({
+            service_order_id: orderId,
+            technician_id: techId,
+            assigned_by: assignedBy,
+            status: 'assigned',
+            role_in_order: 'primary',
+          })),
+          ...selectedHelperIds.map((techId) => ({
+            service_order_id: orderId,
+            technician_id: techId,
+            assigned_by: assignedBy,
+            status: 'assigned',
+            role_in_order: 'assistant',
+          })),
+        ]
 
-      const { error: insertError } = await supabase
-        .from('work_order_assignments')
-        .insert(assignmentsPayload)
+        const { error: insertError } = await supabase
+          .from('work_order_assignments')
+          .insert(assignmentsPayload)
 
-      if (insertError) throw insertError
+        if (insertError) throw insertError
+      }
 
       toast.success('Order updated successfully!')
       router.push(`/dashboard/orders/${orderId}`)
@@ -504,6 +523,7 @@ export default function EditOrderPage() {
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select 
+                disabled={viewerRole === 'sales_partner'}
                 value={formData.status} 
                 onValueChange={(value) => setFormData({ ...formData, status: value })}
               >
@@ -555,11 +575,13 @@ export default function EditOrderPage() {
                   type="date"
                   value={formData.start_date}
                   onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                  disabled={viewerRole === 'sales_partner'}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="start_time">Start Time</Label>
                 <Select
+                  disabled={viewerRole === 'sales_partner'}
                   value={formData.start_time || undefined}
                   onValueChange={(value) => setFormData({ ...formData, start_time: value })}
                 >
@@ -583,11 +605,13 @@ export default function EditOrderPage() {
                   type="date"
                   value={formData.end_date}
                   onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                  disabled={viewerRole === 'sales_partner'}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="end_time">End Time</Label>
                 <Select
+                  disabled={viewerRole === 'sales_partner'}
                   value={formData.end_time || undefined}
                   onValueChange={(value) => setFormData({ ...formData, end_time: value })}
                 >
@@ -606,63 +630,65 @@ export default function EditOrderPage() {
         </Card>
 
         {/* Assignment */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Assignment</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">Minimal 1 teknisi wajib. Helper/magang optional.</p>
-            {dataLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Loading team...
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2 p-4 border rounded-lg">
-                  <p className="text-sm font-semibold">👷 Technicians</p>
-                  {availableTechnicians.map((tech) => (
-                    <label key={tech.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedTechnicianIds.includes(tech.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedTechnicianIds([...selectedTechnicianIds, tech.id])
-                          else setSelectedTechnicianIds(selectedTechnicianIds.filter((id) => id !== tech.id))
-                        }}
-                        className="w-4 h-4 text-blue-600 rounded"
-                      />
-                      <span className="text-sm font-medium">{tech.full_name}</span>
-                    </label>
-                  ))}
+        {viewerRole !== 'sales_partner' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Assignment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">Minimal 1 teknisi wajib. Helper/magang optional.</p>
+              {dataLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading team...
                 </div>
-
-                <div className="space-y-2 p-4 border rounded-lg">
-                  <p className="text-sm font-semibold">🧰 Helpers (Optional)</p>
-                  {availableHelpers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No helpers available</p>
-                  ) : (
-                    availableHelpers.map((tech) => (
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2 p-4 border rounded-lg">
+                    <p className="text-sm font-semibold">👷 Technicians</p>
+                    {availableTechnicians.map((tech) => (
                       <label key={tech.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={selectedHelperIds.includes(tech.id)}
+                          checked={selectedTechnicianIds.includes(tech.id)}
                           onChange={(e) => {
-                            if (e.target.checked) setSelectedHelperIds([...selectedHelperIds, tech.id])
-                            else setSelectedHelperIds(selectedHelperIds.filter((id) => id !== tech.id))
+                            if (e.target.checked) setSelectedTechnicianIds([...selectedTechnicianIds, tech.id])
+                            else setSelectedTechnicianIds(selectedTechnicianIds.filter((id) => id !== tech.id))
                           }}
                           className="w-4 h-4 text-blue-600 rounded"
                         />
                         <span className="text-sm font-medium">{tech.full_name}</span>
                       </label>
-                    ))
-                  )}
+                    ))}
+                  </div>
+
+                  <div className="space-y-2 p-4 border rounded-lg">
+                    <p className="text-sm font-semibold">🧰 Helpers (Optional)</p>
+                    {availableHelpers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No helpers available</p>
+                    ) : (
+                      availableHelpers.map((tech) => (
+                        <label key={tech.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedHelperIds.includes(tech.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedHelperIds([...selectedHelperIds, tech.id])
+                              else setSelectedHelperIds(selectedHelperIds.filter((id) => id !== tech.id))
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
+                          <span className="text-sm font-medium">{tech.full_name}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">Selected: {selectedTechnicianIds.length} technician(s), {selectedHelperIds.length} helper(s)</p>
-          </CardContent>
-        </Card>
+              )}
+              <p className="text-xs text-muted-foreground">Selected: {selectedTechnicianIds.length} technician(s), {selectedHelperIds.length} helper(s)</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Notes */}
         <Card>

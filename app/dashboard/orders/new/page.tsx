@@ -68,6 +68,7 @@ export default function NewOrderPage() {
   const [error, setError] = useState<string | null>(null)
   const [supportsUnitFields, setSupportsUnitFields] = useState(false)
   const [viewerRole, setViewerRole] = useState<string | null>(null)
+  const [newWorkInitialStatus, setNewWorkInitialStatus] = useState<'listing' | 'scheduled'>('listing')
   const [showNewClientForm, setShowNewClientForm] = useState(false)
   const [creatingClient, setCreatingClient] = useState(false)
   const [selectedTechnicianIds, setSelectedTechnicianIds] = useState<string[]>([])
@@ -345,7 +346,16 @@ export default function NewOrderPage() {
       return
     }
 
-    if (selectedTechnicianIds.length < 1) {
+    const isSalesPartner = viewerRole === 'sales_partner'
+    const isHistorical = formData.is_historical === 'true'
+    const isScheduledNewWork = !isHistorical && !isSalesPartner && newWorkInitialStatus === 'scheduled'
+
+    if (isScheduledNewWork && !formData.start_date) {
+      toast.error('Untuk Scheduled, pilih Start Date terlebih dulu')
+      return
+    }
+
+    if ((isHistorical || isScheduledNewWork) && selectedTechnicianIds.length < 1) {
       toast.error('Minimal pilih 1 teknisi (helper optional)')
       return
     }
@@ -374,9 +384,12 @@ export default function NewOrderPage() {
         // Historical record - pekerjaan yang sudah selesai
         orderStatus = 'completed'
       } else {
-        // New work - pekerjaan yang akan dikerjakan
-        if (formData.start_date) {
-          orderStatus = selectedTechnicianIds.length > 0 ? 'scheduled' : 'pending'
+        // New work
+        if (isSalesPartner) {
+          // Sales partner flow: always listing; scheduling handled by admin
+          orderStatus = 'listing'
+        } else if (newWorkInitialStatus === 'scheduled') {
+          orderStatus = 'scheduled'
         } else {
           orderStatus = 'listing'
         }
@@ -411,10 +424,19 @@ export default function NewOrderPage() {
               }
             : {}),
           location_address: formData.location_address,
-          scheduled_date: formData.start_date || null,
-          scheduled_time: formData.start_time || null,
-          estimated_end_date: formData.end_date || null,
-          estimated_end_time: formData.end_time || null,
+          ...((isHistorical || isScheduledNewWork)
+            ? {
+                scheduled_date: formData.start_date || null,
+                scheduled_time: formData.start_time || null,
+                estimated_end_date: formData.end_date || null,
+                estimated_end_time: formData.end_time || null,
+              }
+            : {
+                scheduled_date: null,
+                scheduled_time: null,
+                estimated_end_date: null,
+                estimated_end_time: null,
+              }),
           priority: formData.priority,
           // sales_referral_id: formData.sales_referral_id || null,
           // order_source: formData.order_source,
@@ -428,8 +450,8 @@ export default function NewOrderPage() {
 
       if (orderError) throw orderError
 
-      // Create work order assignments
-      if ((selectedTechnicianIds.length > 0 || selectedHelperIds.length > 0) && newOrder.id) {
+      // Create work order assignments (only when scheduled/historical; sales partner new work stays listing)
+      if ((isHistorical || isScheduledNewWork) && (selectedTechnicianIds.length > 0 || selectedHelperIds.length > 0) && newOrder.id) {
         const assignments = [
           ...selectedTechnicianIds.map((techId) => ({
             service_order_id: newOrder.id,
@@ -651,7 +673,7 @@ export default function NewOrderPage() {
                 </Select>
                 {clients.length === 0 && !showNewClientForm && (
                   <p className="text-sm text-amber-600">
-                    ⚠️ No clients available. Click "Add New Client" button above.
+                    ⚠️ No clients available. Click &quot;Add New Client&quot; button above.
                   </p>
                 )}
               </div>
@@ -923,12 +945,48 @@ export default function NewOrderPage() {
                   </span>
                 ) : (
                   <span>
-                    Set start and end date/time for project estimation. Schedule will sync to client portal.
+                    {viewerRole === 'sales_partner'
+                      ? 'Order dari sales partner akan masuk Listing; penjadwalan dilakukan oleh admin.'
+                      : 'Pilih apakah order langsung dijadwalkan atau masuk Listing.'}
                   </span>
                 )}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {formData.is_historical === 'false' && viewerRole !== 'sales_partner' && (
+                <div className="space-y-2">
+                  <Label htmlFor="new_work_initial_status">Pekerjaan Baru: Status Awal</Label>
+                  <Select
+                    value={newWorkInitialStatus}
+                    onValueChange={(value) => {
+                      const v = value as 'listing' | 'scheduled'
+                      setNewWorkInitialStatus(v)
+                      if (v === 'listing') {
+                        setFormData((prev) => ({
+                          ...prev,
+                          start_date: '',
+                          start_time: '',
+                          end_date: '',
+                          end_time: '',
+                        }))
+                        setSelectedTechnicianIds([])
+                        setSelectedHelperIds([])
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="new_work_initial_status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="listing">Listing (admin jadwalkan)</SelectItem>
+                      <SelectItem value="scheduled">Scheduled (isi jadwal + teknisi)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {(formData.is_historical === 'true' || (viewerRole !== 'sales_partner' && newWorkInitialStatus === 'scheduled')) && (
+                <>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="start_date">
@@ -1076,6 +1134,8 @@ export default function NewOrderPage() {
                   Selected: {selectedTechnicianIds.length} technician(s), {selectedHelperIds.length} helper(s)
                 </p>
               </div>
+                </>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="notes">Internal Notes</Label>
@@ -1091,7 +1151,7 @@ export default function NewOrderPage() {
           </Card>
 
           {/* Summary Info */}
-          {formData.start_date && (
+          {(formData.is_historical === 'true' || (viewerRole !== 'sales_partner' && newWorkInitialStatus === 'scheduled')) && formData.start_date && (
             <Card className="border-green-200 bg-green-50">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
