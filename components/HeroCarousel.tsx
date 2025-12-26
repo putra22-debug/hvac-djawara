@@ -9,7 +9,7 @@ const slides = [
   {
     id: 1,
     title: 'Layanan HVAC Profesional',
-    subtitle: 'Dipercaya oleh Ratusan Pelanggan di Jakarta',
+    subtitle: 'Dipercaya oleh Ratusan Pelanggan di Banyumas',
     description: 'Teknisi bersertifikat dengan pengalaman 10+ tahun di industri HVAC',
     stats: [
       { icon: Users, label: '500+ Pelanggan', value: 'Puas' },
@@ -39,7 +39,7 @@ const slides = [
     benefits: [
       '✓ Pengecekan menyeluruh',
       '✓ Cleaning & disinfeksi',
-      '✓ Penambahan freon jika perlu',
+      '✓ Penambahan Refrigerant/ Freon jika perlu',
       '✓ Laporan kondisi AC lengkap',
     ],
     bgGradient: 'from-purple-600 to-pink-700',

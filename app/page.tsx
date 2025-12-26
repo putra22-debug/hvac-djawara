@@ -67,14 +67,21 @@ export default function HomePage() {
       <header className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Snowflake className="h-8 w-8 text-blue-600" />
+            <Image
+              src="https://tukbuzdngodvcysncwke.supabase.co/storage/v1/object/public/Assets/Logo%201.png"
+              alt="HVAC Djawara logo"
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
+              priority
+            />
             <div>
               <h1 className="text-xl font-bold text-gray-900">HVAC Djawara</h1>
               <p className="text-xs text-gray-500">Professional HVAC Solutions</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <RequestServiceModal />
+            <RequestServiceModal triggerSize="sm" />
             <Link href="/login">
               <Button variant="default" size="sm">Login</Button>
             </Link>
@@ -166,7 +173,7 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />
-                  Pengecekan freon
+                  Pengecekan Refrigerant/ Freon
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />
