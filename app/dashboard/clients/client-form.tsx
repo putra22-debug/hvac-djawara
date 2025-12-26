@@ -55,10 +55,13 @@ export function ClientForm({ tenantId, initialData, clientId }: ClientFormProps)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [salesPeople, setSalesPeople] = useState<SalesPerson[]>([])
   const [loadingSalesPeople, setLoadingSalesPeople] = useState(false)
+  const [viewerRole, setViewerRole] = useState<string | null>(null)
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -67,9 +70,53 @@ export function ClientForm({ tenantId, initialData, clientId }: ClientFormProps)
     },
   })
 
+  useEffect(() => {
+    const loadViewerContext = async () => {
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        if (userError) throw userError
+        if (!user) return
+
+        setViewerUserId(user.id)
+
+        const { data: roleRow, error: roleError } = await supabase
+          .from('user_tenant_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true)
+          .maybeSingle()
+
+        if (roleError) {
+          console.error('Error fetching viewer role:', roleError)
+        }
+
+        const role = (roleRow as any)?.role ?? null
+        setViewerRole(role)
+
+        if (role === 'sales_partner') {
+          // Sales partner is the referral source; lock referral to self.
+          setValue('referred_by_id', user.id)
+          setValue('referred_by_name', undefined)
+        }
+      } catch (e) {
+        console.error('Error loading viewer context:', e)
+      }
+    }
+
+    loadViewerContext()
+  }, [supabase, tenantId, setValue])
+
   // Fetch ALL partners (active + passive) for flexible referral tracking
   useEffect(() => {
     async function fetchSalesPeople() {
+      if (viewerRole === 'sales_partner') {
+        // Referral is locked to self for sales partner; no need to load dropdown options.
+        setSalesPeople([])
+        setLoadingSalesPeople(false)
+        return
+      }
+
       setLoadingSalesPeople(true)
       try {
         // Get ALL partners from partnership_network view
@@ -100,7 +147,7 @@ export function ClientForm({ tenantId, initialData, clientId }: ClientFormProps)
     }
 
     fetchSalesPeople()
-  }, [tenantId, supabase])
+  }, [tenantId, supabase, viewerRole])
 
   async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -177,16 +224,25 @@ export function ClientForm({ tenantId, initialData, clientId }: ClientFormProps)
       let savedClientId = clientId
       let avatarUrl = avatarPreview
 
+      const isSalesPartner = viewerRole === 'sales_partner'
+
       // Determine if selected referral is active (UUID) or passive (name string)
       const selectedPerson = salesPeople.find(p => p.id === data.referred_by_id)
       const isPassivePartner = selectedPerson?.partnership_status === 'passive'
       
       // For passive partners: use referred_by_name instead of referred_by_id
-      const referralData = data.referred_by_id 
-        ? (isPassivePartner 
-            ? { referred_by_id: null, referred_by_name: selectedPerson?.full_name.replace(' (Passive Partner)', '') }
-            : { referred_by_id: data.referred_by_id, referred_by_name: null })
-        : { referred_by_id: null, referred_by_name: null }
+      const referralData = isSalesPartner
+        ? (clientId
+            ? {}
+            : {
+                referred_by_id: viewerUserId,
+                referred_by_name: null,
+              })
+        : (data.referred_by_id 
+            ? (isPassivePartner 
+                ? { referred_by_id: null, referred_by_name: selectedPerson?.full_name.replace(' (Passive Partner)', '') }
+                : { referred_by_id: data.referred_by_id, referred_by_name: null })
+            : { referred_by_id: null, referred_by_name: null })
 
       if (clientId) {
         // Update existing client
@@ -422,38 +478,46 @@ export function ClientForm({ tenantId, initialData, clientId }: ClientFormProps)
           </div>
 
           {/* Sales Referral */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900">Referral Information</h3>
-            
-            <div>
-              <Label htmlFor="referred_by_id">Referred By (Sales/Marketing)</Label>
-              <select
-                id="referred_by_id"
-                {...register('referred_by_id')}
-                disabled={loadingSalesPeople}
-                className="mt-1 flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                onChange={(e) => {
-                  // If selecting a passive partner (name-based), also populate referred_by_name
-                  const selectedPerson = salesPeople.find(p => p.id === e.target.value)
-                  if (selectedPerson?.partnership_status === 'passive') {
-                    // This is a passive partner - will use referred_by_name instead
-                  }
-                }}
-              >
-                <option value="">-- Select Sales Person (Optional) --</option>
-                {salesPeople.map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.full_name} ({person.role.replace('_', ' ')})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {salesPeople.some(p => p.partnership_status === 'passive') 
-                  ? '✅ Passive partners can be selected without activation' 
-                  : 'Select the sales/marketing person who referred this client'}
+          {viewerRole === 'sales_partner' ? (
+            <div className="space-y-2">
+              <h3 className="font-semibold text-gray-900">Referral Information</h3>
+              <p className="text-sm text-muted-foreground">
+                Referral dinonaktifkan untuk akun sales partner. Client yang dibuat akan otomatis terhubung ke akun Anda.
               </p>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-900">Referral Information</h3>
+              
+              <div>
+                <Label htmlFor="referred_by_id">Referred By (Sales/Marketing)</Label>
+                <select
+                  id="referred_by_id"
+                  {...register('referred_by_id')}
+                  disabled={loadingSalesPeople}
+                  className="mt-1 flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  onChange={(e) => {
+                    const selectedPerson = salesPeople.find(p => p.id === e.target.value)
+                    if (selectedPerson?.partnership_status === 'passive') {
+                      // passive partner handled on submit via referred_by_name
+                    }
+                  }}
+                >
+                  <option value="">-- Select Sales Person (Optional) --</option>
+                  {salesPeople.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.full_name} ({person.role.replace('_', ' ')})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {salesPeople.some(p => p.partnership_status === 'passive') 
+                    ? '✅ Passive partners can be selected without activation' 
+                    : 'Select the sales/marketing person who referred this client'}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Additional Notes */}
           <div>
